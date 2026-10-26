@@ -133,6 +133,7 @@ class Handle {
     this.publish();
   }
   private snapshot: QuerySnapshot;
+  private viewSnapshot: StateSnapshot;
   private signature: string;
   private notifiedSignature: string;
   private readonly listeners = new Set<() => void>();
@@ -141,7 +142,8 @@ class Handle {
     readonly view: StateView,
     private readonly onListenerError: (error: unknown) => void,
   ) {
-    this.snapshot = Object.freeze({ ...view.getSnapshot(), error: undefined });
+    this.viewSnapshot = view.getSnapshot();
+    this.snapshot = Object.freeze({ ...this.viewSnapshot, error: undefined });
     this.signature = canonicalInput(this.snapshot);
     this.notifiedSignature = this.signature;
     this.unsubscribe = view.subscribe(() => this.publish());
@@ -162,8 +164,18 @@ class Handle {
   }
   private refreshSnapshot(): void {
     if (!this.active) return;
+    const viewSnapshot = this.view.getSnapshot();
+    if (
+      viewSnapshot === this.viewSnapshot &&
+      this.error === this.snapshot.error
+    )
+      return;
+    this.viewSnapshot = viewSnapshot;
+    // Views are immutable and retain identity until their projection changes.
+    // Changed references still need value equality: reentrant updates can return
+    // to an equivalent state before this handle is read or notified.
     const snapshot = Object.freeze({
-      ...this.view.getSnapshot(),
+      ...viewSnapshot,
       error: this.error,
     });
     const signature = canonicalInput(snapshot);
