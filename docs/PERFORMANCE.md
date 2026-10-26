@@ -1,6 +1,6 @@
 # Base-client scale and lifecycle measurements
 
-**B7c remains open.** The desktop baseline, request-version index and handle snapshot reuse measurements below are synthetic, not a production workload, real application trial or proof of memory safety. The optimizations reduce refresh cost, but large-list latency remains a readiness finding. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
+**B7c remains open.** The desktop baseline and request-version, handle snapshot and store projection measurements below are synthetic, not a production workload, real application trial or proof of memory safety. The optimizations reduce refresh cost, but large-list latency remains a readiness finding. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
 
 ## Reproduce
 
@@ -101,10 +101,34 @@ To repeat the attribution run at either source revision, rebuild its core/GraphQ
 node --cpu-prof --cpu-prof-dir=.artifacts/readiness --cpu-prof-name=snapshot-attribution.cpuprofile --input-type=module -e "import { runRefreshMeasurements } from './apps/billing-demo/bench/readiness-workload.mjs'; await runRefreshMeasurements({ recordCounts: [1000], warmup: 1, samples: 3 });"
 ```
 
+### October 26 store projection reuse
+
+This PERF-01 slice prepares canonical cell keys and frozen response paths once per immutable view selection. Records and subsequent updates reuse those descriptors, including nested aliases and argument-specific paths. The view compares projected data/status separately from `fetching`: request bookkeeping reuses the immutable projection and updates only a changed loading flag. Data commits still reproject and use canonical value equality. Every view updates before any callback; direct store callbacks retain their existing reentrant behavior, while acquisition handles keep their separate notification tracking. GraphQL operation planning and transactional commit cloning are unchanged.
+
+The [full rerun](measurements/b7-store-projection.json) preserves the same harness hashes, dimensions, sample counts, machine and software versions as the handle snapshot run. Its parent is `3b08ab49d2790ed1b83c9ee885424e82bf529a76`; `sourceDirty: true` and the runtime digest identify the candidate measured before commit. Only `state-store.ts` changes in core/GraphQL runtime source. No deliberate tests, builds or probes ran concurrently with measurement.
+
+| Environment               | Records | Full refresh median (ms) | Single-field refresh median (ms) |
+| ------------------------- | ------: | -----------------------: | -------------------------------: |
+| Node                      |     100 |                    25.77 |                            11.21 |
+| Node                      |   1,000 |                   264.84 |                           116.35 |
+| Node                      |   5,000 |                 1,430.54 |                           663.32 |
+| Chromium, 1×              |     100 |                    16.90 |                             7.40 |
+| Chromium, 1×              |   1,000 |                   164.90 |                            68.90 |
+| Chromium, 4× CPU throttle |     100 |                    77.80 |                            33.90 |
+| Chromium, 4× CPU throttle |   1,000 |                 1,069.40 |                           455.20 |
+
+Against the handle snapshot run, the 5,000-record Node full/narrow medians improve by about 38%/58%; unthrottled 1,000-record browser medians improve by about 43%/64%. All refresh correctness assertions passed, including preserved siblings and unaffected consumer notifications. These workload-specific observations do not establish universal speedups or acceptable application response times.
+
+Post-GC whole-isolate used heap at 1× was 2.88 MB at baseline, 24.15–24.18 MB active, 2.90–2.93 MB released and 2.84 MB disposed. At 4× it was 2.88 MB, 24.15–24.16 MB, 2.90–2.91 MB and 2.83 MB respectively. The active range is lower than the prior roughly 28.84 MB observation. Released batches again had zero harness-owned handles/subscriptions and in-flight fixture calls, with 21 verified reacquisitions per profile. These are bounded whole-isolate observations, not allocation accounting for a single cache or proof of long-session memory safety.
+
+Seven new public store regressions cover loading-only/value-equal updates, request replacement and canonical argument/alias coverage, nested missing/null/error states, failed-batch atomicity, unknown/empty/null resources, reentrant commit/fetching/disposal and captured selection immutability. The independent reviewer also compared 600 deterministic 65-action traces against the previous store: 39,000 generated actions and 74,641 matching observations of snapshots, top-level reference changes, callbacks and failures. Inner record/path reference identity is not added as a public contract.
+
+The same separate 1,000-record attribution profile described above puts `View.update` at 321.06 sampled inclusive ms (15.82%), down from 1,912.48 ms (51.22%) before this slice. Total sampled process time was 2,029.16 ms versus 3,733.97 ms. `canonicalInput` still accounts for 1,201.53 ms (59.21%) across multiple callers, including reconciliation and snapshot publication. These overlapping, process-wide samples include startup/fixture/assertion work; they identify repeated canonical copying/serialization as the next investigation, not precise per-operation timings or evidence to bypass validation.
+
 ### Remaining investigation
 
 Timing and memory numbers are evidence, not automatically accepted budgets. Do not increase a budget to make a slow baseline pass. Establish application responsiveness and retained-memory budgets on the intended workload/device after profiling and rerunning any fixes.
 
-**PERF-01 remains open.** The next focused slice is repeated store projection/equality work, which remains the largest of the profiled subtrees above. Reduce redundant work while preserving atomic cross-consumer reads, stable snapshot identity, fetching transitions and field freshness/error semantics. Continue measuring full and narrow reads at the same dimensions; the current 1,000-record browser times are still substantial before network or Angular rendering. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
+**PERF-01 remains open.** Next, attribute and reduce redundant canonical copying/serialization across reconciliation and snapshot publication while retaining external-input validation, canonical address semantics and exact equality behavior. Any reuse must have a defensible immutability boundary; an externally frozen object alone does not prove its descendants are immutable or validated. Keep that change separately reviewed and repeat the same dimensions. The current 1,000-record browser times, particularly under CPU throttling, remain substantial before network or Angular rendering. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
 
 B7c closes only after the scale finding is resolved or bounded by an explicitly accepted supported workload, repeated lifecycle and memory results are assessed, and a physical lower-powered environment or an explicitly agreed alternative supplies the remaining evidence. B7d must review that evidence before declaring extension readiness. The existing release PR remains batched.
