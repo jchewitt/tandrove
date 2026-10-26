@@ -1,6 +1,6 @@
 # Base-client scale and lifecycle measurements
 
-**B7c remains open.** The desktop baseline and first request-version indexing optimization below are synthetic measurements, not a production workload, real application trial or proof of memory safety. The first optimization reduces the largest measured full-refresh cost, but large-list latency remains a readiness finding. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
+**B7c remains open.** The desktop baseline, request-version index and handle snapshot reuse measurements below are synthetic, not a production workload, real application trial or proof of memory safety. The optimizations reduce refresh cost, but large-list latency remains a readiness finding. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
 
 ## Reproduce
 
@@ -71,10 +71,40 @@ Post-GC used heap at 1× was 2.88 MB at the warmed baseline, 28.84–28.85 MB wi
 
 Eight new public-behavior regression tests cover canonical composite identities and arguments, older disjoint commits, global deduplication/root guards, record-local null/replacement/error barriers, reentrant ingestion/disposal and root-reset reacquisition. The independent reviewer also compared 140,957 observations across 15,000 deterministic operations against the previous implementation without finding a behavior difference. Timing assertions are not added to machine-independent correctness tests.
 
+### October 26 handle snapshot reuse
+
+The next PERF-01 slice avoids rebuilding and serializing a query handle's wrapper when both its immutable store snapshot reference and handle error are unchanged. A changed view or error still takes the existing canonical equality path. Observed state and last-notified state remain separate: reading a peer before its callback must not consume that notification, and a reentrant A → B → A update can remain unnotified to consumers that never received B. The cached view reference advances even when the canonical value is unchanged. The change stays inside the acquisition handle; store projections and their equality checks are unchanged.
+
+The [full rerun](measurements/b7-snapshot-cache.json) uses the same harness hashes, dimensions, sample counts, machine and software versions as the request-version index run. Its recorded parent is `b670a4e6a93ced4038c46e0ef61be279153e6a31`, with `sourceDirty: true` and the runtime digest identifying the candidate measured before commit. `acquisition.ts` is the only core/GraphQL runtime file changed from that parent. Measurements ran without concurrent deliberate builds, tests or probes.
+
+| Environment               | Records | Full refresh median (ms) | Single-field refresh median (ms) |
+| ------------------------- | ------: | -----------------------: | -------------------------------: |
+| Node                      |     100 |                    41.71 |                            28.91 |
+| Node                      |   1,000 |                   436.28 |                           299.15 |
+| Node                      |   5,000 |                 2,305.91 |                         1,575.38 |
+| Chromium, 1×              |     100 |                    28.80 |                            19.10 |
+| Chromium, 1×              |   1,000 |                   291.50 |                           191.10 |
+| Chromium, 4× CPU throttle |     100 |                   133.40 |                            87.70 |
+| Chromium, 4× CPU throttle |   1,000 |                 1,812.30 |                         1,178.30 |
+
+Against the indexed runtime, the 5,000-record Node full/narrow medians improve by about 15%/19%; the unthrottled 1,000-record browser medians improve by about 13%/16%. These are observations from the unchanged synthetic workload, not general speedup guarantees or accepted responsiveness budgets. All selected-value, sibling-preservation, notification and membership assertions passed.
+
+Post-GC whole-isolate used heap at 1× was 2.87 MB at baseline, 28.83–28.86 MB active, 2.90–2.92 MB released and 2.84 MB disposed. At 4× it was 2.87 MB, 28.83–28.84 MB, 2.89–2.91 MB and 2.82 MB respectively. Released batches again had zero harness-owned handles/subscriptions and in-flight fixture calls, with 21 verified reacquisitions per profile. The bounded heap observations remain similar to the indexed run; they do not prove long-session memory safety or supply an active-cache budget.
+
+Seven public-behavior regressions cover equivalent/unselected patches, peer reads before notification, reentrant A → B → A changes with read and unread peers, owner-only errors/reset, fetching-only transitions, disposal before notification and late responses after client cleanup. The independent reviewer also replayed 2,000 deterministic 40-action traces against the previous handle implementation, with 28,126 matching observations. Equality remains value-based when a reference changes; replacing it with reference-only notification rules would break the reentrant cases.
+
+Separate Node CPU profiles before and after the fast path used the existing 1,000-record refresh workload with one warmup and three measured pairs. They include module startup, initial acquisition, fixture work and assertions, so their sampled inclusive times are attribution evidence rather than the wall-time benchmark above. Subtrees overlap and percentages must not be summed. `Handle.refreshSnapshot` fell from 1,230.88 sampled ms (27.81%) to 484.30 ms (12.97%). `View.update`, including projection and canonical equality, remained at 1,884.09 ms (42.57%) before and 1,912.48 ms (51.22%) after. This supports store projection/equality as the next target, without implying those profile differences are precise operation timings.
+
+To repeat the attribution run at either source revision, rebuild its core/GraphQL packages, then run the existing workload with Node's CPU profiler (the output directory is created by the full measurement command):
+
+```sh
+node --cpu-prof --cpu-prof-dir=.artifacts/readiness --cpu-prof-name=snapshot-attribution.cpuprofile --input-type=module -e "import { runRefreshMeasurements } from './apps/billing-demo/bench/readiness-workload.mjs'; await runRefreshMeasurements({ recordCounts: [1000], warmup: 1, samples: 3 });"
+```
+
 ### Remaining investigation
 
 Timing and memory numbers are evidence, not automatically accepted budgets. Do not increase a budget to make a slow baseline pass. Establish application responsiveness and retained-memory budgets on the intended workload/device after profiling and rerunning any fixes.
 
-**PERF-01 remains open.** The next focused slice is repeated snapshot serialization/equality work, identified during the baseline profile. Confirm its remaining cost in the indexed runtime, then optimize it with regression coverage for stable snapshot references, error/fetching transitions, notifications and disposal. Keep store projection changes separate unless the evidence requires them. Continue measuring full and narrow reads at the same dimensions; the current 1,000-record browser times are still substantial before network or Angular rendering. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
+**PERF-01 remains open.** The next focused slice is repeated store projection/equality work, which remains the largest of the profiled subtrees above. Reduce redundant work while preserving atomic cross-consumer reads, stable snapshot identity, fetching transitions and field freshness/error semantics. Continue measuring full and narrow reads at the same dimensions; the current 1,000-record browser times are still substantial before network or Angular rendering. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
 
 B7c closes only after the scale finding is resolved or bounded by an explicitly accepted supported workload, repeated lifecycle and memory results are assessed, and a physical lower-powered environment or an explicitly agreed alternative supplies the remaining evidence. B7d must review that evidence before declaring extension readiness. The existing release PR remains batched.
