@@ -121,37 +121,56 @@ function ensureParents(record: StoredRecord, path: readonly string[]): void {
   }
 }
 
+interface ProjectionField {
+  readonly cellKey: string;
+  readonly responseName: string;
+  readonly responsePath: readonly string[];
+  readonly children: readonly ProjectionField[];
+}
+
+/** A view's immutable selection has the same addresses for every record/update. */
+function projectionFields(
+  fields: readonly ResolvedField[],
+  canonical: readonly string[] = [],
+  response: readonly string[] = [],
+): readonly ProjectionField[] {
+  return Object.freeze(
+    fields.map((field) => {
+      const path = [...canonical, token(field)];
+      const responsePath = Object.freeze([...response, field.responseName]);
+      return Object.freeze({
+        cellKey: key(path),
+        responseName: field.responseName,
+        responsePath,
+        children: projectionFields(field.children, path, responsePath),
+      });
+    }),
+  );
+}
+
 function projectRecord(
   record: StoredRecord,
-  selection: readonly ResolvedField[],
+  selection: readonly ProjectionField[],
 ): RecordSnapshot {
   const statuses: FieldStatus[] = [];
   // A missing/null object hides values, but cannot hide a later failure beneath it.
-  function descendantMetadata(
-    fields: readonly ResolvedField[],
-    canonical: readonly string[],
-    response: readonly string[],
-  ): void {
+  function descendantMetadata(fields: readonly ProjectionField[]): void {
     for (const field of fields) {
-      const path = [...canonical, token(field)];
-      const responsePath = [...response, field.responseName];
-      const cell = record.cells.get(key(path));
+      const cell = record.cells.get(field.cellKey);
       if (cell?.stale || cell?.error !== undefined)
         statuses.push(
           Object.freeze({
-            path: Object.freeze(responsePath),
+            path: field.responsePath,
             present: false,
             stale: true,
             ...(cell.error === undefined ? {} : { error: cell.error }),
           }),
         );
-      descendantMetadata(field.children, path, responsePath);
+      descendantMetadata(field.children);
     }
   }
   function project(
-    fields: readonly ResolvedField[],
-    canonical: readonly string[],
-    response: readonly string[],
+    fields: readonly ProjectionField[],
     inheritedError?: string,
   ): InputObject {
     const result: Record<string, InputValue> = Object.create(null) as Record<
@@ -159,21 +178,14 @@ function projectRecord(
       InputValue
     >;
     for (const field of fields) {
-      const path = [...canonical, token(field)];
-      const responsePath = [...response, field.responseName];
-      const cell = record.cells.get(key(path));
+      const cell = record.cells.get(field.cellKey);
       const present = cell !== undefined && cell.kind !== 'missing';
       const stale = !present || cell!.stale;
       // Branch failures are materialized on existing descendants at commit time.
       // A later successful child write can therefore recover independently.
       const error = cell?.error ?? (present ? undefined : inheritedError);
       if (field.children.length && cell?.kind === 'object') {
-        result[field.responseName] = project(
-          field.children,
-          path,
-          responsePath,
-          error,
-        );
+        result[field.responseName] = project(field.children, error);
       } else {
         // A structural null is visible as null, never as old cached descendants.
         const compatible =
@@ -183,18 +195,18 @@ function projectRecord(
         if (compatible) result[field.responseName] = cell!.value!;
         statuses.push(
           Object.freeze({
-            path: Object.freeze(responsePath),
+            path: field.responsePath,
             present: compatible,
             stale: stale || !compatible,
             ...(error === undefined ? {} : { error }),
           }),
         );
-        descendantMetadata(field.children, path, responsePath);
+        descendantMetadata(field.children);
       }
     }
     return Object.freeze(result);
   }
-  const data = project(selection, [], []);
+  const data = project(selection);
   return Object.freeze({
     identity: record.identity,
     data,
@@ -206,6 +218,8 @@ class View implements StateView {
   private active = true;
   private readonly listeners = new Set<() => void>();
   private snapshot: StateSnapshot;
+  private readonly projection: readonly ProjectionField[];
+  // Fetching is compared separately so request bookkeeping never serializes data.
   private signature: string;
   readonly paths: readonly (readonly string[])[];
   constructor(
@@ -214,15 +228,17 @@ class View implements StateView {
     private readonly resource: Resource,
   ) {
     this.paths = leafPaths(selection);
-    this.snapshot = this.compute();
-    this.signature = canonicalInput(this.snapshot);
+    this.projection = projectionFields(selection);
+    const projection = this.compute();
+    this.signature = canonicalInput(projection);
+    this.snapshot = Object.freeze({ ...projection, fetching: this.fetching() });
   }
-  private compute(): StateSnapshot {
+  private compute(): Omit<StateSnapshot, 'fetching'> {
     const records =
       this.resource.membership === null
         ? null
         : this.resource.membership?.map((id) =>
-            projectRecord(this.resource.records.get(id)!, this.selection),
+            projectRecord(this.resource.records.get(id)!, this.projection),
           );
     const statuses = records?.flatMap((record) => record.fields);
     return Object.freeze({
@@ -244,21 +260,25 @@ class View implements StateView {
           (status) => status.stale || status.error !== undefined,
         ) ??
           false),
-      fetching: [...this.resource.requests.values()].some(
-        (request) =>
-          request.membership ||
-          request.paths.some((path) =>
-            this.paths.some((selected) => overlaps(path, selected)),
-          ),
-      ),
     });
   }
-  update(): boolean {
+  private fetching(): boolean {
+    return [...this.resource.requests.values()].some(
+      (request) =>
+        request.membership ||
+        request.paths.some((path) =>
+          this.paths.some((selected) => overlaps(path, selected)),
+        ),
+    );
+  }
+  update(reproject: boolean): boolean {
     if (!this.active) return false;
-    const next = this.compute();
-    const signature = canonicalInput(next);
-    if (signature === this.signature) return false;
-    this.snapshot = next;
+    const projection = reproject ? this.compute() : this.snapshot;
+    const signature = reproject ? canonicalInput(projection) : this.signature;
+    const fetching = this.fetching();
+    if (signature === this.signature && fetching === this.snapshot.fetching)
+      return false;
+    this.snapshot = Object.freeze({ ...projection, fetching });
     this.signature = signature;
     return true;
   }
@@ -478,7 +498,7 @@ export class StateStore {
     resource.membershipStale = next.membershipStale;
     resource.resourceError = next.resourceError;
     resource.records = next.records;
-    this.publish(resource);
+    this.publish(resource, true);
   }
   /** Request bookkeeping only; this method neither executes nor cancels work. */
   setFetching(
@@ -495,11 +515,13 @@ export class StateStore {
       const paths = leafPaths(validatedSelection(fields));
       resource.requests.set(requestId, { paths, membership });
     }
-    this.publish(resource);
+    this.publish(resource, false);
   }
-  private publish(resource: Resource): void {
+  private publish(resource: Resource, reproject: boolean): void {
     // Update all projections before notifying so cross-consumer reads are consistent.
-    const changed = [...resource.views].filter((view) => view.update());
+    const changed = [...resource.views].filter((view) =>
+      view.update(reproject),
+    );
     const errors: unknown[] = [];
     for (const view of changed) view.notify(errors);
     if (errors.length)
