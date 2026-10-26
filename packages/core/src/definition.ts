@@ -16,8 +16,23 @@ export interface ResourceScope {
   readonly scope: string;
 }
 
-/** Snapshot JSON-shaped inputs; omit undefined object properties, never array items. */
+// Only our frozen, null-prototype, array-free copies have reusable provenance.
+// Arrays (and their ancestors) still run through Array.from/JSON.stringify;
+// inherited iteration/serialization hooks are not memoized. Caller freezing
+// never proves validation or deep immutability. Weak keys avoid retention.
+// null means owned but not yet serialized; a string is its cached encoding.
+const reusableInputs = new WeakMap<object, string | null>();
+
+/**
+ * Snapshot JSON-shaped inputs; omit undefined object properties, never array items.
+ * Already validated immutable objects may be reused; copy identity is unspecified.
+ */
 export function snapshotInput(input: unknown): InputValue {
+  return copyInput(input, true);
+}
+
+// Serialization-only copies need no reusable provenance bookkeeping.
+function copyInput(input: unknown, remember: boolean): InputValue {
   const ancestors = new Set<object>();
   function copy(value: unknown): InputValue {
     if (
@@ -30,6 +45,7 @@ export function snapshotInput(input: unknown): InputValue {
       return Object.is(value, -0) ? 0 : value;
     if (typeof value !== 'object' || value === null)
       throw new Error('Inputs must contain finite JSON values.');
+    if (reusableInputs.has(value)) return value as InputObject;
     if (ancestors.has(value)) throw new Error('Cyclic input.');
     ancestors.add(value);
     try {
@@ -45,14 +61,23 @@ export function snapshotInput(input: unknown): InputValue {
         string,
         InputValue
       >;
+      let reusable = remember;
       for (const key of Object.keys(value).sort()) {
         const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
         if (!('value' in descriptor))
           throw new Error('Input accessors are unsupported.');
-        if (descriptor.value !== undefined)
-          result[key] = copy(descriptor.value);
+        if (descriptor.value !== undefined) {
+          const child = copy(descriptor.value);
+          result[key] = child;
+          reusable &&=
+            child === null ||
+            typeof child !== 'object' ||
+            reusableInputs.has(child);
+        }
       }
-      return Object.freeze(result);
+      Object.freeze(result);
+      if (reusable) reusableInputs.set(result, null);
+      return result;
     } finally {
       ancestors.delete(value);
     }
@@ -61,7 +86,16 @@ export function snapshotInput(input: unknown): InputValue {
 }
 
 export function canonicalInput(input: unknown): string {
-  return JSON.stringify(snapshotInput(input));
+  if (input !== null && typeof input === 'object') {
+    const canonical = reusableInputs.get(input);
+    if (canonical !== undefined) {
+      if (canonical !== null) return canonical;
+      const encoded = JSON.stringify(input);
+      reusableInputs.set(input, encoded);
+      return encoded;
+    }
+  }
+  return JSON.stringify(copyInput(input, false));
 }
 
 /** Selection and aliases deliberately do not participate in resource identity. */

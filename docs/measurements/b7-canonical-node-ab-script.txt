@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { cpus, totalmem } from 'node:os';
+const root = process.cwd();
+const output = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(join(root, 'package.json'));
+const { build, version: esbuild } = createRequire(join(root, 'apps/billing-demo/package.json'))('esbuild');
+const ts = require('typescript');
+const sha = value => createHash('sha256').update(value).digest('hex');
+const sourcePath = 'packages/core/src/definition.ts';
+const baselineSource = execFileSync('git', ['show', `HEAD:${sourcePath}`], {encoding:'utf8'});
+const candidateSource = readFileSync(join(root,sourcePath),'utf8');
+const compile = source => ts.transpileModule(source,{fileName:'definition.ts',compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,verbatimModuleSyntax:true}}).outputText;
+const withoutMap = source => source.replace(/\/\/# sourceMappingURL=.*$/m,'').trim();
+assert.equal(withoutMap(compile(candidateSource)),withoutMap(readFileSync(join(root,'packages/core/dist/definition.js'),'utf8')));
+let overridden=0;
+const bundles={};
+for(const variant of ['baseline','candidate']) {
+  const result=await build({entryPoints:[join(root,'apps/billing-demo/bench/readiness-node.mjs')],bundle:true,platform:'node',mainFields:['module','main'],format:'esm',target:'es2022',minify:false,write:false,plugins:variant==='baseline'?[{name:'previous-definition-only',setup(builder){builder.onLoad({filter:/[\\/]core[\\/]dist[\\/]definition\.js$/},args=>{assert.equal(args.path.replaceAll('\\','/'),join(root,'packages/core/dist/definition.js').replaceAll('\\','/'));overridden++;return{contents:compile(baselineSource),loader:'js',resolveDir:dirname(args.path)};});}}]:[]});
+  bundles[variant]=result.outputFiles[0].text;
+  writeFileSync(join(output,`canonical-${variant}-node.mjs`),bundles[variant]);
+}
+assert.equal(overridden,1);
+const files=['apps/billing-demo/bench/readiness.mjs','apps/billing-demo/bench/readiness-node.mjs','apps/billing-demo/bench/readiness-workload.mjs'];
+const report={measuredAt:new Date().toISOString(),method:'Same-session Node attribution diagnostic, baseline/candidate/candidate/baseline order. Fresh Node process per run executes the unchanged complete readiness-node planning and refresh workload, bundled as ESM with esbuild. Only definition.js is replaced in the baseline bundle with transpiled HEAD source. Bundling differs from the formal unbundled Node run, so this diagnoses the observed regression rather than replacing formal measurements.',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),sourceDirty:execFileSync('git',['status','--porcelain'],{encoding:'utf8'}).trim().length>0,baselineSourceSha256:sha(baselineSource),candidateSourceSha256:sha(candidateSource),diagnosticScriptSha256:sha(readFileSync(fileURLToPath(import.meta.url))),harnessSha256:Object.fromEntries(files.map(file=>[file,sha(readFileSync(join(root,file)))])),bundleSha256:Object.fromEntries(Object.entries(bundles).map(([name,code])=>[name,sha(code)])),environment:{node:process.version,platform:process.platform,arch:process.arch,cpu:cpus()[0].model,logicalCpus:cpus().length,systemMemoryBytes:totalmem(),esbuild},runs:[]};
+for(const variant of ['baseline','candidate','candidate','baseline']) {
+  console.log(`Running ${variant} Node workload...`);
+  const result=JSON.parse(execFileSync(process.execPath,[join(output,`canonical-${variant}-node.mjs`)],{cwd:root,encoding:'utf8',timeout:300000,maxBuffer:10*1024*1024}));
+  report.runs.push({variant,result});
+  console.log(JSON.stringify({variant,medians:result.refresh.map(row=>({records:row.recordCount,full:row.full.wall.median,narrow:row.narrow.wall.median}))}));
+}
+writeFileSync(join(output,'canonical-node-ab.json'),JSON.stringify(report,null,2)+'\n');
+
