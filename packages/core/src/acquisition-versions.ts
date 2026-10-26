@@ -18,14 +18,15 @@ export class AcquisitionVersions {
   private rootCommit = 0;
   private readonly intents = new Map<string, Stamp>();
   private readonly invalidations = new Map<string, Stamp>();
-  private readonly structures = new Map<
-    string,
-    { readonly record: string } & Stamp
-  >();
+  private readonly structures = new Map<string, Map<string, Stamp>>();
+  // An upper bound, not an overlap decision: older disjoint responses can commit
+  // after newer ones. Only versions at/above this bound may skip structure scans.
+  private structureVersion = 0;
   dispose(): void {
     this.intents.clear();
     this.invalidations.clear();
     this.structures.clear();
+    this.structureVersion = 0;
     this.clock = this.rootIntent = this.rootCommit = 0;
   }
 
@@ -56,9 +57,7 @@ export class AcquisitionVersions {
           ![...this.invalidations.values()].some(
             (stamp) => stamp.version > version && overlaps(stamp.path, path),
           ) &&
-          ![...this.structures.values()].some(
-            (stamp) => stamp.version > version && overlaps(stamp.path, path),
-          ),
+          !this.newerStructure(version, path),
       )
     );
   }
@@ -67,17 +66,27 @@ export class AcquisitionVersions {
       (stamp) => stamp.version > version && overlaps(stamp.path, path),
     );
   }
-  private newerField(version: number, field: FieldChange): boolean {
-    const record = canonicalInput(field.record);
-    return (
-      this.newerIntent(version, field.path) ||
-      [...this.structures.values()].some(
-        (stamp) =>
-          stamp.record === record &&
+  /** Currency/root checks must still account for commits in every record. */
+  private newerStructure(version: number, path?: FieldPath): boolean {
+    if (version >= this.structureVersion) return false;
+    for (const record of this.structures.values())
+      for (const stamp of record.values())
+        if (
           stamp.version > version &&
-          overlaps(stamp.path, field.path),
-      )
-    );
+          (path === undefined || overlaps(stamp.path, path))
+        )
+          return true;
+    return false;
+  }
+  private newerField(version: number, field: FieldChange): boolean {
+    if (this.newerIntent(version, field.path)) return true;
+    if (version >= this.structureVersion) return false;
+    const record = this.structures.get(canonicalInput(field.record));
+    if (record)
+      for (const stamp of record.values())
+        if (stamp.version > version && overlaps(stamp.path, field.path))
+          return true;
+    return false;
   }
 
   /** Validate/reconcile first, then discard obsolete changes before publishing once. */
@@ -99,7 +108,7 @@ export class AcquisitionVersions {
     if (
       root &&
       ([...this.intents.values()].some((stamp) => stamp.version > version) ||
-        [...this.structures.values()].some((stamp) => stamp.version > version))
+        this.newerStructure(version))
     )
       return { changes: [], superseded: true };
 
@@ -156,6 +165,7 @@ export class AcquisitionVersions {
       if (change.kind === 'membership' || change.kind === 'resource-null') {
         this.rootCommit = version;
         this.structures.clear();
+        this.structureVersion = 0;
       } else if (
         change.kind === 'write' ||
         change.kind === 'error' ||
@@ -168,8 +178,13 @@ export class AcquisitionVersions {
           ))
       ) {
         const record = canonicalInput(change.record);
-        const key = canonicalInput([record, change.path]);
-        this.structures.set(key, { record, path: change.path, version });
+        let stamps = this.structures.get(record);
+        if (!stamps) {
+          stamps = new Map();
+          this.structures.set(record, stamps);
+        }
+        stamps.set(canonicalInput(change.path), { path: change.path, version });
+        this.structureVersion = Math.max(this.structureVersion, version);
       }
     }
   }

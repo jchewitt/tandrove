@@ -1,6 +1,6 @@
 # Base-client scale and lifecycle measurements
 
-**B7c remains open.** This is synthetic measurement tooling and an initial desktop baseline, not a production workload, real application trial or proof of memory safety. No package runtime is optimized by this slice. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
+**B7c remains open.** The desktop baseline and first request-version indexing optimization below are synthetic measurements, not a production workload, real application trial or proof of memory safety. The first optimization reduces the largest measured full-refresh cost, but large-list latency remains a readiness finding. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
 
 ## Reproduce
 
@@ -12,7 +12,7 @@ pnpm measure:readiness
 
 The command rebuilds core/GraphQL, runs a bounded Node subprocess, bundles the same public-API workload for Chromium, and writes `.artifacts/readiness/latest.json`. Browser bundle/metafile artifacts go to `output/playwright/readiness/`. Neither command publishes anything or overwrites the recorded baseline in `docs/measurements/`. Each Node run and browser profile has a five-minute limit; failure or timeout fails the command instead of producing a success report. Run it without concurrent builds, tests or other deliberate CPU load.
 
-The report identifies the source commit, dirty state, runtime-source digest, harness-file hashes, browser-bundle hash, manifest versions and environment. Main contains unpublished B4–B7a changes while manifests still carry alpha.5; these measurements are not measurements of registry alpha.5. The baseline was collected before committing the harness, so `sourceDirty: true` is intentional. Use its hashes and the reviewed source to identify the harness, not a claimed clean release tag.
+The report identifies the source commit, dirty state, runtime-source digest, harness-file hashes, browser-bundle hash, manifest versions and environment. Main contains unpublished B4–B7a changes while manifests still carry alpha.5; these measurements are not measurements of registry alpha.5. Reports collected before committing their harness or runtime candidate intentionally have `sourceDirty: true`. Use the hashes and reviewed source to identify what ran, not a claimed clean release tag.
 
 ## What is measured
 
@@ -45,8 +45,36 @@ The [raw baseline](measurements/b7-readiness-baseline.json) uses unchanged runti
 
 Whole-isolate post-GC used heap at 1× was 2.87 MB at the warmed baseline, 30.54–30.56 MB while three scopes were active, 2.89–2.91 MB after releasing each batch and 2.82 MB after client disposal (decimal MB). At 4×, the corresponding ranges were 2.88 MB, 30.55–30.56 MB, 2.90–2.92 MB and 2.83 MB. Every released sample had zero harness-owned handles/subscriptions and zero in-flight fixture transport calls; 21 same-scope reacquisitions were verified per profile. This bounded run did not show accumulating retained data between batches. It does not establish an active-cache memory budget, internal timer counts, long-session behavior or a general absence of leaks.
 
+### October 26 request-version index
+
+The first PERF-01 slice replaces a flat collection of committed field-version stamps with maps keyed by canonical record identity and field path. A field conflict check now visits only that record's stamps. A conservative upper bound avoids scanning committed stamps when the request version cannot be older than any of them. Older disjoint responses cannot lower the bound. Root/membership replacement and disposal clear the index and bound together. Request intents, mark-only invalidation, context-only object markers and resource-wide retry/deduplication checks retain their existing semantics; these remain local generations, not authoritative server revisions.
+
+The [full rerun](measurements/b7-version-index.json) uses the same three harness files, dimensions, sample counts, machine and software versions as the baseline. It records parent commit `0b6b22a8f51a6507fce517fc8fd9628a1040b8d3` with `sourceDirty: true` because the indexed runtime was measured before commit; its runtime digest identifies the candidate. Only `acquisition-versions.ts` changes in core/GraphQL runtime source. No tests, builds or other deliberate CPU workload ran alongside the measurements.
+
+| Environment               | Records | Full refresh median (ms) | Single-field refresh median (ms) |
+| ------------------------- | ------: | -----------------------: | -------------------------------: |
+| Node                      |     100 |                    49.22 |                            32.81 |
+| Node                      |   1,000 |                   531.77 |                           370.53 |
+| Node                      |   5,000 |                 2,716.69 |                         1,948.45 |
+| Chromium, 1×              |     100 |                    33.20 |                            22.30 |
+| Chromium, 1×              |   1,000 |                   334.60 |                           227.70 |
+| Chromium, 4× CPU throttle |     100 |                   153.10 |                           102.90 |
+| Chromium, 4× CPU throttle |   1,000 |                 2,071.30 |                         1,397.30 |
+
+The 5,000-record Node full median falls from 15,936.23 to 2,716.69 ms (about 83%); its narrow median falls from 3,621.83 to 1,948.45 ms (about 46%). The unthrottled 1,000-record browser full median falls from 716.90 to 334.60 ms. However, the throttled 1,000-record narrow median rises from 1,267.40 to 1,397.30 ms in this run. These separate-session observations do not establish a universal speedup or resolve the responsiveness finding.
+
+A [same-session attribution diagnostic](measurements/b7-version-index-ab.json) investigated that slower result. It runs the unchanged planning and refresh workloads in fresh Chromium contexts at 4×, in the order old → indexed → indexed → old. The old bundle substitutes only the previous `acquisition-versions.js`; the indexed bundle's hash matches the full rerun. Each context retains its own five measured pairs after one warmup pair, with no concurrent deliberate CPU load. At 1,000 records, old full medians were 4,658.10 and 4,583.60 ms versus indexed medians of 2,048.00 and 2,050.90 ms. Old narrow medians were 1,700.90 and 1,725.10 ms versus 1,397.90 and 1,403.40 ms. This supports improvement under the current session's conditions rather than a repeatable regression in this workload. It does not identify the cause of the difference between sessions or replace the formal observations above.
+
+The [exact diagnostic script](measurements/b7-version-index-ab-script.txt) is archived as text to preserve the measured bytes and its reported SHA256. It is a one-off capture artifact. It ran as an `.mjs` file outside the repository, with the repository as working directory, `HEAD` at the recorded parent commit, the indexed source uncommitted, rebuilt candidate packages and `.artifacts/readiness/latest.json` from the full rerun. It reads the old module from that `HEAD`, verifies the candidate bundle and writes the diagnostic JSON alongside the script. Reproducing it requires restoring those inputs; running it against a later `HEAD` would not compare the same old implementation.
+
+Post-GC used heap at 1× was 2.88 MB at the warmed baseline, 28.84–28.85 MB with three active scopes, 2.90–2.91 MB after release and 2.83 MB after disposal. At 4× it was 2.88 MB, 28.84–28.86 MB, 2.91–2.92 MB and 2.84 MB respectively. Released batches again had zero harness-owned handles/subscriptions and in-flight fixture transport calls, with 21 verified same-scope reacquisitions per profile. The active range is lower than the earlier roughly 30.55 MB observation; this is a whole-isolate observation, not isolated index allocation accounting or a general memory-safety claim.
+
+Eight new public-behavior regression tests cover canonical composite identities and arguments, older disjoint commits, global deduplication/root guards, record-local null/replacement/error barriers, reentrant ingestion/disposal and root-reset reacquisition. The independent reviewer also compared 140,957 observations across 15,000 deterministic operations against the previous implementation without finding a behavior difference. Timing assertions are not added to machine-independent correctness tests.
+
+### Remaining investigation
+
 Timing and memory numbers are evidence, not automatically accepted budgets. Do not increase a budget to make a slow baseline pass. Establish application responsiveness and retained-memory budgets on the intended workload/device after profiling and rerunning any fixes.
 
-The large-list refresh cost is the first investigation target. Profile full and narrow reads separately with the same record dimensions, including operation planning, decoding, generation/coverage validation, commit projection and notification work. Preserve the current correctness assertions and add regression coverage for the actual fix. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
+**PERF-01 remains open.** The next focused slice is repeated snapshot serialization/equality work, identified during the baseline profile. Confirm its remaining cost in the indexed runtime, then optimize it with regression coverage for stable snapshot references, error/fetching transitions, notifications and disposal. Keep store projection changes separate unless the evidence requires them. Continue measuring full and narrow reads at the same dimensions; the current 1,000-record browser times are still substantial before network or Angular rendering. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
 
 B7c closes only after the scale finding is resolved or bounded by an explicitly accepted supported workload, repeated lifecycle and memory results are assessed, and a physical lower-powered environment or an explicitly agreed alternative supplies the remaining evidence. B7d must review that evidence before declaring extension readiness. The existing release PR remains batched.

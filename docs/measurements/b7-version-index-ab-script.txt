@@ -1,0 +1,95 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = process.cwd();
+const require = createRequire(join(root, 'package.json'));
+const { build } = createRequire(join(root, 'apps/billing-demo/package.json'))('esbuild');
+const { chromium } = require('@playwright/test');
+const ts = require('typescript');
+const sha = (value) => createHash('sha256').update(value).digest('hex');
+const sourcePath = 'packages/core/src/acquisition-versions.ts';
+const baselineSource = execFileSync('git', ['show', `HEAD:${sourcePath}`], { encoding: 'utf8' });
+const candidateSource = readFileSync(join(root, sourcePath), 'utf8');
+const compile = (source) => ts.transpileModule(source, {
+  fileName: 'acquisition-versions.ts',
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, verbatimModuleSyntax: true },
+}).outputText;
+const withoutMap = (source) => source.replace(/\/\/# sourceMappingURL=.*$/m, '').trim();
+assert.equal(withoutMap(compile(candidateSource)), withoutMap(readFileSync(join(root, 'packages/core/dist/acquisition-versions.js'), 'utf8')));
+let overridden = 0;
+const bundles = {};
+for (const variant of ['baseline', 'candidate']) {
+  const result = await build({
+    stdin: {
+      contents: "import * as readiness from './readiness-workload.mjs'; globalThis.tandroveReadiness = readiness;",
+      resolveDir: join(root, 'apps/billing-demo/bench'),
+      sourcefile: 'readiness-browser-entry.mjs',
+    },
+    bundle: true, platform: 'browser', format: 'iife', target: 'es2022', minify: true, write: false,
+    define: { 'process.env.NODE_ENV': '"production"' },
+    plugins: variant === 'baseline' ? [{
+      name: 'previous-request-versions-only',
+      setup(builder) {
+        builder.onLoad({ filter: /acquisition-versions\.js$/ }, (args) => {
+          assert.equal(args.path.replaceAll('\\', '/'), join(root, 'packages/core/dist/acquisition-versions.js').replaceAll('\\', '/'));
+          overridden++;
+          return { contents: compile(baselineSource), loader: 'js', resolveDir: dirname(args.path) };
+        });
+      },
+    }] : [],
+  });
+  bundles[variant] = result.outputFiles[0].text;
+}
+assert.equal(overridden, 1);
+const formal = JSON.parse(readFileSync(join(root, '.artifacts/readiness/latest.json'), 'utf8'));
+assert.equal(sha(bundles.candidate), formal.browserBundleSha256);
+const report = {
+  measuredAt: new Date().toISOString(),
+  method: 'Same-session attribution diagnostic, order baseline/candidate/candidate/baseline. Fresh browser context per run at 4x CPU throttle. Each runs unchanged planning then refresh workloads (100/1000 records, 1 warmup pair, 5 measured pairs). Only acquisition-versions.js is replaced in the baseline bundle with the transpiled HEAD source; all other runtime and harness code is identical. Not a replacement for the full formal rerun.',
+  sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+  baselineSourceSha256: sha(baselineSource),
+  candidateSourceSha256: sha(candidateSource),
+  diagnosticScriptSha256: sha(readFileSync(fileURLToPath(import.meta.url))),
+  harnessSha256: formal.harnessSha256,
+  bundleSha256: Object.fromEntries(Object.entries(bundles).map(([key, value]) => [key, sha(value)])),
+  environment: formal.environment,
+  runs: [],
+};
+const browser = await chromium.launch({ headless: true });
+assert.equal(browser.version(), formal.environment.chromium);
+try {
+  for (const variant of ['baseline', 'candidate', 'candidate', 'baseline']) {
+    console.log(`Running ${variant} at 4x CPU throttle...`);
+    const context = await browser.newContext();
+    let timer;
+    try {
+      await context.route('**/*', (route) => route.abort());
+      const page = await context.newPage();
+      await page.goto('about:blank');
+      await page.addScriptTag({ content: bundles[variant] });
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      const refresh = await Promise.race([
+        page.evaluate(async () => {
+          globalThis.tandroveReadiness.runPlanningMeasurements();
+          return globalThis.tandroveReadiness.runRefreshMeasurements({ recordCounts: [100, 1000], samples: 5 });
+        }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Diagnostic profile exceeded five minutes')), 300000); }),
+      ]);
+      report.runs.push({ variant, refresh });
+      console.log(JSON.stringify({ variant, medians: refresh.map((row) => ({ records: row.recordCount, full: row.full.wall.median, narrow: row.narrow.wall.median })) }));
+    } finally {
+      clearTimeout(timer);
+      await context.close();
+    }
+  }
+} finally {
+  await browser.close();
+}
+writeFileSync(new URL('./perf01-browser-ab.json', import.meta.url), JSON.stringify(report, null, 2) + '\n');
+console.log('Same-session diagnostic complete.');
