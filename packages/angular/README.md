@@ -8,13 +8,13 @@ The adapter observes the shared core runtime without duplicating fetching, retri
 
 ## Install and compatibility
 
-Installation example for `0.1.0-alpha.5` in an Angular 21 application:
+Installation example for `1.0.0-alpha.6` in an Angular 21 application:
 
 ```sh
-npm install @tandrove/core@0.1.0-alpha.5 @tandrove/angular@0.1.0-alpha.5
+npm install @tandrove/core@1.0.0-alpha.6 @tandrove/angular@1.0.0-alpha.6
 ```
 
-Add `@tandrove/graphql@0.1.0-alpha.5` and `graphql@^16.14.2` for GraphQL applications. Angular core `^21.2.25` and exactly matching Tandrove core are peers; the tested baseline is Angular 21.2.25 with RxJS 7.8.2. Older Angular majors are not supported. The package contains ESM JavaScript, optional declaration files and partial compilation metadata; Angular's build processes that metadata normally. It is built through ng-packagr and published from the generated `dist` directory.
+Add `@tandrove/graphql@1.0.0-alpha.6` and `graphql@^16.14.2` for GraphQL applications. Angular core `^21.2.25` and exactly matching Tandrove core are peers; the tested baseline is Angular 21.2.25 with RxJS 7.8.2. Older Angular majors are not supported. The package contains ESM JavaScript, optional declaration files and partial compilation metadata; Angular's build processes that metadata normally. It is built through ng-packagr and published from the generated `dist` directory.
 
 The alpha API and extension interfaces may change with documented migrations. Demo form helpers are not exported: form drafts stay local and a save command remains application-owned. No socket, server, persistence or timer package is required. See [release status](https://github.com/jchewitt/tandrove/blob/main/docs/RELEASING.md) before installing a version not yet published.
 

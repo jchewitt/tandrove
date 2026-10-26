@@ -1,5 +1,24 @@
 # @tandrove/core
 
+## 1.0.0-alpha.6
+
+### Minor Changes
+
+- 5fd2c7c: Assign ready providers through captured global defaults, resource groups and per-resource overrides. Explicit false disables inherited capabilities; group names do not change cache identity. Add bound-source descriptors and shared provider/policy resolution while preserving the default GraphQL endpoint setup.
+
+  Reject conflicting authorities at shared state addresses, including local patch ingress, until the cached scope is evicted. Equivalent custom core source wrappers must reuse a source instance or declare one stable authority object. GraphQL uses the selected transport identity automatically. Provider scopes remain borrowed by clients.
+
+- 357472a: Add explicit owner-bound `poll({ target?, everyMs? })` interests with inherited global/group/resource defaults. Identical canonical field selections share the fastest active cadence, join pending reads/retries and wait until settlement before scheduling again. Stopping or disposing an owner releases its interests while preserving other owners' shared work. GraphQL supplies native timing; Angular guards current bindings and releases polling on replacement/destruction. Polling preserves ordinary field-refresh and explicit list-membership semantics.
+- b2c20b7: Infer selected snapshot data through GraphQL handles and Angular query signals. Add `SnapshotData<Result>` and defaulted snapshot/result generics while retaining readonly partial fields, scalar nullability, structural object nulls, dynamic JSON fallbacks and existing target-only consumers. `ResultOf` remains the full declared selection. Explicit `watch<Result>(...)` calls should instead infer from a typed bound definition. Cache storage, projection behavior, snapshot identity and JavaScript execution are unchanged.
+
+### Patch Changes
+
+- 4e03e5d: Reuse handle snapshots without rebuilding and serializing their contents when the immutable state view and handle error are unchanged. Preserve value-based equality and notification tracking when state changes, including reentrant updates and reads before another consumer's notification.
+- 080a611: Index committed request-version barriers by canonical record identity and field path, avoiding repeated scans of unrelated records during field refresh. A conservative version upper bound skips unnecessary barrier scans while preserving resource-wide intent, invalidation, structural replacement and membership race protection. No public API or authoritative server-version semantics change.
+- 88a307f: Add optional runtime-scoped provider registration with validated typed tokens, supplied instances, single-flight sync/async factories and explicit owned/borrowed cleanup. Support partial-initialization cleanup, cancellation, memoized failures and safe disposal of late factory results. GraphQL transport and custom acquisition tokens work with the existing synchronous clients; default GraphQL setup remains unchanged.
+- ac898c9: Prepare canonical field addresses and response paths once per store view, and reuse immutable projected data for request-loading changes. Compare loading state separately while preserving value-based equality for data commits and updating every view before notifying consumers.
+- c0d58c5: Reuse internally validated, immutable array-free input snapshots and their canonical strings to reduce repeated identity and argument processing. Caller-owned inputs remain validated on every call. Arrays continue through iteration and native serialization rather than being memoized.
+
 ## 0.1.0-alpha.5
 
 ### Patch Changes

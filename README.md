@@ -73,7 +73,7 @@ Run `pnpm demo:acquire` for actual Tandrove HTTP requests against an isolated fi
 | `examples/vanilla`       | JavaScript/TypeScript consumers and fake whole-resource/event adapters       |
 | `scripts`, `tests`       | Package/release checks and Angular browser scenarios                         |
 
-Core has no runtime, UI-framework, GraphQL, or platform dependency. The package versions in this checkout are `@tandrove/core`, `@tandrove/graphql` and `@tandrove/angular`, all at `0.1.0-alpha.5`. Publication and npm account setup are tracked in the [release guide](docs/RELEASING.md). Install matching alpha versions together; see the [GraphQL quick start](packages/graphql/README.md) and [Angular integration](docs/ANGULAR.md).
+Core has no runtime, UI-framework, GraphQL, or platform dependency. The package versions in this checkout are `@tandrove/core`, `@tandrove/graphql` and `@tandrove/angular`, all at `1.0.0-alpha.6`. Publication and npm account setup are tracked in the [release guide](docs/RELEASING.md). Install matching alpha versions together; see the [GraphQL quick start](packages/graphql/README.md) and [Angular integration](docs/ANGULAR.md).
 
 ## Plan and delivery
 
