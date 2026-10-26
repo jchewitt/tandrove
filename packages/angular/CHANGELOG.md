@@ -1,5 +1,24 @@
 # @tandrove/angular
 
+## 1.0.0-alpha.6
+
+### Minor Changes
+
+- 357472a: Add explicit owner-bound `poll({ target?, everyMs? })` interests with inherited global/group/resource defaults. Identical canonical field selections share the fastest active cadence, join pending reads/retries and wait until settlement before scheduling again. Stopping or disposing an owner releases its interests while preserving other owners' shared work. GraphQL supplies native timing; Angular guards current bindings and releases polling on replacement/destruction. Polling preserves ordinary field-refresh and explicit list-membership semantics.
+- b2c20b7: Infer selected snapshot data through GraphQL handles and Angular query signals. Add `SnapshotData<Result>` and defaulted snapshot/result generics while retaining readonly partial fields, scalar nullability, structural object nulls, dynamic JSON fallbacks and existing target-only consumers. `ResultOf` remains the full declared selection. Explicit `watch<Result>(...)` calls should instead infer from a typed bound definition. Cache storage, projection behavior, snapshot identity and JavaScript execution are unchanged.
+
+### Patch Changes
+
+- Updated dependencies [4e03e5d]
+- Updated dependencies [080a611]
+- Updated dependencies [5fd2c7c]
+- Updated dependencies [88a307f]
+- Updated dependencies [ac898c9]
+- Updated dependencies [c0d58c5]
+- Updated dependencies [357472a]
+- Updated dependencies [b2c20b7]
+  - @tandrove/core@1.0.0-alpha.6
+
 ## 0.1.0-alpha.5
 
 ### Patch Changes

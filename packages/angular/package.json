@@ -1,6 +1,6 @@
 {
   "name": "@tandrove/angular",
-  "version": "0.1.0-alpha.5",
+  "version": "1.0.0-alpha.6",
   "type": "module",
   "license": "MIT",
   "description": "Angular signals, client providers and owned query views for Tandrove.",
@@ -15,7 +15,7 @@
   },
   "peerDependencies": {
     "@angular/core": "^21.2.25",
-    "@tandrove/core": "0.1.0-alpha.5"
+    "@tandrove/core": "1.0.0-alpha.6"
   },
   "dependencies": {
     "tslib": "2.8.1"

@@ -6,10 +6,10 @@ Exports observation contracts, portable canonical addresses, immutable selection
 
 ## Install and compatibility
 
-Installation example for `0.1.0-alpha.5`:
+Installation example for `1.0.0-alpha.6`:
 
 ```sh
-npm install @tandrove/core@0.1.0-alpha.5
+npm install @tandrove/core@1.0.0-alpha.6
 ```
 
 Use matching Tandrove alpha versions. Core is portable ESM JavaScript with optional TypeScript declarations and no runtime dependencies. The repository tests Node 22.14+ and Node 24; browser integration is tested through Angular 21.2.25. For ordinary GraphQL applications, start with the [assembled GraphQL client](https://github.com/jchewitt/tandrove/tree/main/packages/graphql) rather than constructing an acquisition source manually.
