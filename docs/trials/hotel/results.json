@@ -1,0 +1,56 @@
+{
+  "faults": {
+    "passed": [
+      {
+        "scenario": "business-error-retains-cache-and-draft",
+        "attempts": 1
+      },
+      {
+        "scenario": "503-recovers-with-one-retry",
+        "attempts": 2
+      },
+      {
+        "scenario": "403-terminal-and-recoverable",
+        "attempts": 1
+      },
+      {
+        "scenario": "deadline-retains-cache-rejects-late-data",
+        "attempts": 1
+      },
+      {
+        "scenario": "offline-bounded-read-retry",
+        "attempts": 2
+      },
+      {
+        "scenario": "navigation-cancels-last-owner",
+        "attempts": 1
+      }
+    ],
+    "timestamp": "2026-11-02T21:35:19.508Z"
+  },
+  "booking": {
+    "passed": true,
+    "scenarios": [
+      "booking-confirmed-by-real-server",
+      "overlap-rejected-draft-retained",
+      "cancel-confirmation-and-list-update"
+    ],
+    "mutationRequests": ["create", "create", "delete"],
+    "timestamp": "2026-11-02T21:32:57.437Z"
+  },
+  "cycles": {
+    "passed": true,
+    "navigationCycles": 100,
+    "previewDestructionCycles": 100,
+    "roomReads": 100,
+    "elapsedMs": 28872,
+    "timestamp": "2026-11-02T21:32:28.801Z"
+  },
+  "idle": {
+    "passed": true,
+    "observationMs": 31000,
+    "requestsAfterExpiry": 0,
+    "mode": "on-demand",
+    "cachedRate": 155
+  }
+}

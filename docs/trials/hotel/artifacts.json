@@ -1,0 +1,20 @@
+{
+  "packages": [
+    {
+      "sha512": "9fd242b57abb6b5dbaba50ce23ca0bdcd2e4a24fcc42a21ba2a5be511232c546d43160c898e22478ed3c944b3085b9d58c8f4d43e0e4482d2c31ca569edc4b8d",
+      "file": "tandrove-angular-0.1.0-alpha.5.tgz"
+    },
+    {
+      "sha512": "c10d129ff273935dacd0970c62b11ce76a9d85ff98afabe8a1650814d6bcd9131b3cd77f88a25a4489440cb521c3a8c12a31f279f0884d57820089635b4b270d",
+      "file": "tandrove-core-0.1.0-alpha.5.tgz"
+    },
+    {
+      "sha512": "8a777fc699af00ddfecd138f5aaea64db936d22bdaa5067496354373624c096372d798094c6e8543516fd9ad4df19e3596d848ff9c8ebf8cb3a30bbc24f0b821",
+      "file": "tandrove-graphql-0.1.0-alpha.5.tgz"
+    }
+  ],
+  "publication": false,
+  "tandroveCommit": "0edc602e64e5b65f07ed74c3c5e4b17af9996e15",
+  "integrationPatchSha256": "07c822dcd5912ea1425edc33a0222d9a55acf2b4d6f72b53a3e59a982a1559aa",
+  "applicationCommit": "3ebd6536c4fc3c47482089d747917beed6802873"
+}

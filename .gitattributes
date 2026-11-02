@@ -1,3 +1,5 @@
 * text=auto eol=lf
 # Preserve the measured diagnostic script's bytes for its recorded SHA256.
 docs/measurements/b7-canonical-node-ab-script.txt -text whitespace=cr-at-eol,-blank-at-eof
+# Unified patches require a context marker on otherwise blank lines.
+docs/trials/hotel/integration.patch whitespace=-blank-at-eol

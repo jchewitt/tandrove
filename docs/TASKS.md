@@ -149,9 +149,11 @@ These are four planned readiness slices, not a promise of four commits or a rele
 
 ### B7 validation follow-ups
 
-- [x] B7b.1 Prepare the [existing-application protocol](APPLICATION-TRIAL.md), compatibility preflight and exact local tarball handoff. A public hotel application candidate has been cloned and schema-preflighted; the actual application trial remains unexecuted.
+- [x] B7b.1 Prepare the [existing-application protocol](APPLICATION-TRIAL.md), compatibility preflight and exact local tarball handoff. The first bounded application execution is recorded under B7b.2a.
 - [x] B7b.1a Establish Angular 20.1.0 as the lowest public-API-compatible version, build on that floor, and add isolated packed-package AOT/Zone/zoneless CI coverage across majors 20–22. See the [independent review and validation](reviews/2026-11-02-angular-compatibility.md); broader peers remain pending a batched release.
 - [ ] B7b.2 Run that protocol in a selected existing Angular application; resolve and independently review correctness findings.
+- [x] B7b.2a Integrate installed tarballs into the public hotel's existing room selector with an independently owned rate view; run the real backend, fault/lifecycle checks and existing booking commands. See the [bounded trial and reproduction](trials/hotel/README.md) and [independent review](reviews/2026-11-02-hotel-application-trial.md). This slice does not close B7b.2 or B7b.
+- [ ] B7b.2b Address the identified application command-ownership gap and collect remaining account/save-race, representative-session and cross-route-retention evidence in a compatible real workflow; obtain the final application/readiness review.
 - [x] B7c.1 Add repeatable schema/list/lifecycle measurements and record [desktop Node/Chromium evidence](PERFORMANCE.md), including a clearly labeled CPU-throttled profile. These results are synthetic, not physical lower-powered-device evidence.
 - [ ] B7c.2 Resolve **PERF-01**, the measured large-list refresh latency: profile client-side work, implement a focused reviewed fix with correctness regression coverage, and rerun the same dimensions. Do not introduce compiled plan reuse without supporting evidence.
 - [x] B7c.2a Index committed request versions by canonical record and field, preserve local race semantics, add regression coverage and rerun the unchanged measurements. See [results and remaining limitations](PERFORMANCE.md#october-26-request-version-index); this first optimization does not close PERF-01.
