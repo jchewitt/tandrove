@@ -2,6 +2,8 @@
 
 November 2, 2026. B7b.2b.1 fixes the application issue identified in the [first trial](README.md). It changes the isolated hotel's NgRx/form integration, not Tandrove's runtime or public API. No package publication is required.
 
+The subsequent [account/save-race slice](ACCOUNT-RACES.md) adds the session boundary and real-server browser evidence left open in this historical report.
+
 See the [independent review and patch hash](../../reviews/2026-11-02-hotel-save-ownership.md).
 
 The previous component dispatched a create action and then subscribed to the next success from any command. A failed save left that listener active; another save, a replacement component, or navigation could trigger an obsolete callback.

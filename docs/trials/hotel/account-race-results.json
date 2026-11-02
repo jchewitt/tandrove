@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-02",
+  "applicationPatches": [
+    {
+      "patch": "account-fixture.patch",
+      "baseCommit": "d33c6d7848d132ca5d13e0e4e344b14d15dae834",
+      "applicationCommit": "cf8187b9ff44974fd56e25d69b46bf9c3f90c486",
+      "sha256": "e782922ba4b92e2c21ed13627d23fda0c26494d81ea7f5164462d04b71a39377"
+    },
+    {
+      "patch": "session-ownership.patch",
+      "baseCommit": "cf8187b9ff44974fd56e25d69b46bf9c3f90c486",
+      "applicationCommit": "07f395f7c176671a00d9060f2cc97dd85d69dc48",
+      "sha256": "325583ef4645a58cb0721ecd5f9114a487bde8083e49b79870285ce91018b11f"
+    }
+  ],
+  "frontendTests": 55,
+  "backendTests": 18,
+  "angular": "21.2.17",
+  "node": "24.15.0",
+  "browser": "Chrome 156.0.0.0",
+  "backendProfile": "trial-accounts",
+  "libraryArtifactManifest": "artifacts.json",
+  "browserRuns": [
+    {
+      "script": "browser-account-reads.js",
+      "passed": true,
+      "scenarios": [
+        "late-login-cannot-replace-new-account",
+        "late-room-read-and-draft-isolated-across-accounts",
+        "pending-poll-cancelled-and-registration-not-inherited",
+        "pending-retry-cancelled-on-logout-without-resurrecting-ui"
+      ],
+      "roomRequests": 8,
+      "timestamp": "2026-11-02T22:40:49.192Z"
+    },
+    {
+      "script": "browser-save-races.js",
+      "passed": true,
+      "scenarios": [
+        "pending-save-ack-preserves-unsent-edits-and-submitted-values",
+        "late-private-reservation-read-cannot-overwrite-new-account",
+        "committed-old-account-save-does-not-update-new-account-and-reconciles-on-return",
+        "logout-after-server-commit-hides-late-ack-and-reconciles-without-replay"
+      ],
+      "mutationRequests": [
+        "create",
+        "create",
+        "create",
+        "delete",
+        "delete",
+        "delete"
+      ],
+      "timestamp": "2026-11-02T22:40:53.842Z"
+    }
+  ]
+}

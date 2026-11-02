@@ -1,0 +1,1626 @@
+diff --git a/frontend/src/app/app.component.spec.ts b/frontend/src/app/app.component.spec.ts
+index 33e54d9..5e77487 100644
+--- a/frontend/src/app/app.component.spec.ts
++++ b/frontend/src/app/app.component.spec.ts
+@@ -7,6 +7,7 @@ import { provideHttpClient } from '@angular/common/http';
+ import { provideHttpClientTesting } from '@angular/common/http/testing';
+ 
+ const mockAuthService = {
++  session: () => ({ epoch: 1, account: 'example-user', token: 'test-token' }),
+   sessionToken: () => 'test-token',
+   login: () =>
+     of({ access_token: 'test-token', token_type: 'bearer', expires_in: 3600 }),
+diff --git a/frontend/src/app/app.component.ts b/frontend/src/app/app.component.ts
+index 36a7269..c2d1697 100644
+--- a/frontend/src/app/app.component.ts
++++ b/frontend/src/app/app.component.ts
+@@ -1,4 +1,5 @@
+-import { Component, OnInit } from '@angular/core';
++import { Component, DestroyRef, OnInit, computed, inject } from '@angular/core';
++import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+ import { RouterOutlet } from '@angular/router';
+ import { AuthService } from './core/services/auth.service';
+ 
+@@ -12,22 +13,54 @@ import { AuthService } from './core/services/auth.service';
+         <a class="navbar-brand" href="/">Acme Hotel</a>
+       </div>
+     </nav>
+-    @if (authService.sessionToken()) {
+-      <router-outlet></router-outlet>
+-    } @else {
++    @if (trialAccounts) {
++      <div class="container my-2" aria-label="Account trial controls">
++        <button type="button" (click)="switchAccount('example-user')">
++          Account A
++        </button>
++        <button type="button" (click)="switchAccount('trial-user-b')">
++          Account B
++        </button>
++        <button type="button" (click)="logout()">Log out</button>
++      </div>
++    }
++    @for (session of sessions(); track session.epoch) {
++      <p data-testid="session-account">Signed in: {{ session.account }}</p>
++      <router-outlet />
++    } @empty {
+       <p role="status">{{ authError || 'Signing in…' }}</p>
+     }
+   `,
+ })
+ export class AppComponent implements OnInit {
++  private readonly destroyRef = inject(DestroyRef);
++  readonly trialAccounts =
++    new URLSearchParams(location.search).get('trialAccounts') === '1';
++  readonly sessions = computed(() => {
++    const session = this.authService.session();
++    return session ? [session] : [];
++  });
+   authError = '';
+   constructor(readonly authService: AuthService) {}
+ 
+   ngOnInit(): void {
+-    this.authService.login().subscribe({
+-      error: () => {
+-        this.authError = 'Authentication failed. Reload to retry.';
+-      },
+-    });
++    this.switchAccount('example-user');
++  }
++
++  switchAccount(account: string): void {
++    this.authError = '';
++    this.authService
++      .login(account)
++      .pipe(takeUntilDestroyed(this.destroyRef))
++      .subscribe({
++        error: () => {
++          this.authError = 'Authentication failed. Reload to retry.';
++        },
++      });
++  }
++
++  logout(): void {
++    this.authService.clearToken();
++    this.authError = 'Signed out. Choose an account to continue.';
+   }
+ }
+diff --git a/frontend/src/app/core/interceptors/auth.interceptor.ts b/frontend/src/app/core/interceptors/auth.interceptor.ts
+index a6ec58a..195ce69 100644
+--- a/frontend/src/app/core/interceptors/auth.interceptor.ts
++++ b/frontend/src/app/core/interceptors/auth.interceptor.ts
+@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
+ import { AuthService } from '../services/auth.service';
+ 
+ export const authInterceptor: HttpInterceptorFn = (req, next) => {
++  if (req.headers.has('Authorization')) return next(req);
+   const authService = inject(AuthService);
+   const token = authService.getToken();
+ 
+diff --git a/frontend/src/app/core/services/auth.service.spec.ts b/frontend/src/app/core/services/auth.service.spec.ts
+new file mode 100644
+index 0000000..7799048
+--- /dev/null
++++ b/frontend/src/app/core/services/auth.service.spec.ts
+@@ -0,0 +1,60 @@
++import { TestBed } from '@angular/core/testing';
++import { provideHttpClient } from '@angular/common/http';
++import {
++  HttpTestingController,
++  provideHttpClientTesting,
++} from '@angular/common/http/testing';
++import { AuthService } from './auth.service';
++
++describe('Hotel session ownership', () => {
++  let auth: AuthService;
++  let http: HttpTestingController;
++  const token = {
++    access_token: 'same-token',
++    token_type: 'Bearer',
++    expires_in: 3600,
++  };
++  beforeEach(() => {
++    TestBed.configureTestingModule({
++      providers: [provideHttpClient(), provideHttpClientTesting()],
++    });
++    auth = TestBed.inject(AuthService);
++    http = TestBed.inject(HttpTestingController);
++  });
++  afterEach(() => {
++    auth.clearToken();
++    http.verify();
++    TestBed.resetTestingModule();
++  });
++
++  it('cancels an earlier login when a later login starts', () => {
++    auth.login().subscribe(() => fail('Old login escaped'));
++    const first = http.expectOne('/development/token');
++    auth.login('trial-user-b').subscribe();
++    expect(first.cancelled).toBeTrue();
++    http.expectOne('/development/token').flush(token);
++    expect(auth.session()?.account).toBe('trial-user-b');
++    expect(auth.session()?.epoch).toBe(2);
++  });
++
++  it('logout cancels login and clears credentials synchronously', () => {
++    auth.login().subscribe(() => fail('Login escaped logout'));
++    const pending = http.expectOne('/development/token');
++    auth.clearToken();
++    expect(pending.cancelled).toBeTrue();
++    expect(auth.session()).toBeNull();
++    expect(auth.getToken()).toBeNull();
++    expect(localStorage.getItem('access_token')).toBeNull();
++  });
++
++  it('creates a new epoch even when the server issues an identical token', () => {
++    auth.login().subscribe();
++    http.expectOne('/development/token').flush(token);
++    const first = auth.session()!;
++    auth.login().subscribe();
++    expect(auth.session()).toBeNull();
++    http.expectOne('/development/token').flush(token);
++    expect(auth.session()?.token).toBe(first.token);
++    expect(auth.session()?.epoch).toBeGreaterThan(first.epoch);
++  });
++});
+diff --git a/frontend/src/app/core/services/auth.service.ts b/frontend/src/app/core/services/auth.service.ts
+index 3ab6dee..21a8d2c 100644
+--- a/frontend/src/app/core/services/auth.service.ts
++++ b/frontend/src/app/core/services/auth.service.ts
+@@ -1,6 +1,13 @@
+-import { Injectable, signal } from '@angular/core';
++import { Injectable, computed, signal } from '@angular/core';
+ import { HttpClient, HttpParams } from '@angular/common/http';
+-import { Observable, tap } from 'rxjs';
++import {
++  BehaviorSubject,
++  Observable,
++  defer,
++  filter,
++  takeUntil,
++  tap,
++} from 'rxjs';
+ 
+ export interface TokenResponse {
+   access_token: string;
+@@ -8,42 +15,63 @@ export interface TokenResponse {
+   expires_in: number;
+ }
+ 
++export interface HotelSession {
++  readonly epoch: number;
++  readonly account: string;
++  readonly token: string;
++}
++
+ @Injectable({
+   providedIn: 'root',
+ })
+ export class AuthService {
+-  private readonly currentToken = signal<string | null>(null);
+-  readonly sessionToken = this.currentToken.asReadonly();
++  private readonly currentSession = signal<HotelSession | null>(null);
++  private readonly currentEpoch = signal(0);
++  private readonly changes = new BehaviorSubject(0);
++  readonly session = this.currentSession.asReadonly();
++  readonly epoch = this.currentEpoch.asReadonly();
++  readonly sessionToken = computed(() => this.session()?.token ?? null);
++  readonly epochChanges = this.changes.asObservable();
+   private readonly TOKEN_KEY = 'access_token';
+   private readonly TOKEN_URL = '/development/token';
+ 
+   constructor(private http: HttpClient) {}
+ 
+-  login(): Observable<TokenResponse> {
+-    this.clearToken();
+-    const body = new HttpParams()
+-      .set('grant_type', 'password')
+-      .set('username', 'example-user')
+-      .set('password', 'example-user');
+-
+-    return this.http
+-      .post<TokenResponse>(this.TOKEN_URL, body.toString(), {
+-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+-      })
+-      .pipe(
+-        tap((response) => {
+-          localStorage.setItem(this.TOKEN_KEY, response.access_token);
+-          this.currentToken.set(response.access_token);
+-        }),
+-      );
++  login(account = 'example-user'): Observable<TokenResponse> {
++    return defer(() => {
++      this.clearToken();
++      const epoch = this.epoch();
++      const body = new HttpParams()
++        .set('grant_type', 'password')
++        .set('username', account)
++        .set('password', 'example-user');
++      return this.http
++        .post<TokenResponse>(this.TOKEN_URL, body.toString(), {
++          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++        })
++        .pipe(
++          takeUntil(this.epochChanges.pipe(filter((value) => value !== epoch))),
++          filter(() => this.epoch() === epoch),
++          tap((response) => {
++            localStorage.setItem(this.TOKEN_KEY, response.access_token);
++            this.currentSession.set(
++              Object.freeze({ epoch, account, token: response.access_token }),
++            );
++          }),
++        );
++    });
+   }
+ 
+   getToken(): string | null {
+-    return localStorage.getItem(this.TOKEN_KEY);
++    return this.sessionToken();
+   }
+ 
+   clearToken(): void {
++    const epoch = this.epoch() + 1;
+     localStorage.removeItem(this.TOKEN_KEY);
+-    this.currentToken.set(null);
++    this.currentSession.set(null);
++    this.currentEpoch.set(epoch);
++    // Synchronous boundary for transport cancellation and NgRx reset.
++    this.changes.next(epoch);
+   }
+ }
+diff --git a/frontend/src/app/screens/home/home.component.ts b/frontend/src/app/screens/home/home.component.ts
+index a256f12..37c9735 100644
+--- a/frontend/src/app/screens/home/home.component.ts
++++ b/frontend/src/app/screens/home/home.component.ts
+@@ -1,4 +1,5 @@
+-import { Component, OnInit } from '@angular/core';
++import { Component, OnInit, inject } from '@angular/core';
++import { AuthService } from '../../core/services/auth.service';
+ import { CommonModule } from '@angular/common';
+ import { RouterLink } from '@angular/router';
+ import { Store } from '@ngrx/store';
+@@ -21,6 +22,7 @@ import {
+   styleUrls: ['./home.component.scss'],
+ })
+ export class HomeComponent implements OnInit {
++  private readonly epoch = inject(AuthService).epoch();
+   reservations$: Observable<Reservation[]>;
+   loading$: Observable<boolean>;
+   alert$: Observable<{ message: string; alertType: string } | null>;
+@@ -34,24 +36,33 @@ export class HomeComponent implements OnInit {
+   }
+ 
+   ngOnInit(): void {
+-    this.store.dispatch(ReservationActions.loadReservations());
++    this.store.dispatch(
++      ReservationActions.loadReservations({ epoch: this.epoch }),
++    );
+   }
+ 
+   openCancelModal(reservationId: number): void {
+     this.store.dispatch(
+-      ReservationActions.openConfirmationModal({ reservationId }),
++      ReservationActions.openConfirmationModal({
++        epoch: this.epoch,
++        reservationId,
++      }),
+     );
+   }
+ 
+   confirmDeletion(): void {
+-    this.store.dispatch(ReservationActions.confirmDeletion());
++    this.store.dispatch(
++      ReservationActions.confirmDeletion({ epoch: this.epoch }),
++    );
+   }
+ 
+   cancelDeletion(): void {
+-    this.store.dispatch(ReservationActions.cancelDeletion());
++    this.store.dispatch(
++      ReservationActions.cancelDeletion({ epoch: this.epoch }),
++    );
+   }
+ 
+   dismissAlert(): void {
+-    this.store.dispatch(ReservationActions.clearAlert());
++    this.store.dispatch(ReservationActions.clearAlert({ epoch: this.epoch }));
+   }
+ }
+diff --git a/frontend/src/app/screens/reservations/new/new-reservation.component.html b/frontend/src/app/screens/reservations/new/new-reservation.component.html
+index 4723a92..1482881 100644
+--- a/frontend/src/app/screens/reservations/new/new-reservation.component.html
++++ b/frontend/src/app/screens/reservations/new/new-reservation.component.html
+@@ -76,6 +76,14 @@
+                 </p>
+               }
+               <div class="d-flex gap-2 my-2">
++                <button
++                  type="button"
++                  class="btn btn-outline-secondary btn-sm"
++                  (click)="togglePolling()"
++                  [disabled]="roomsLoading() && !polling"
++                >
++                  {{ polling ? 'Stop rate polling' : 'Start rate polling' }}
++                </button>
+                 <button
+                   type="button"
+                   class="btn btn-outline-secondary btn-sm"
+diff --git a/frontend/src/app/screens/reservations/new/new-reservation.component.ts b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+index e013ab0..01edb64 100644
+--- a/frontend/src/app/screens/reservations/new/new-reservation.component.ts
++++ b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+@@ -30,6 +30,7 @@ export class NewReservationComponent {
+   pendingCommandId: string | undefined;
+   saveNotice = '';
+   private readonly catalog = inject(RoomCatalog);
++  private readonly epoch = this.catalog.sessionEpoch();
+   readonly roomQuery = injectStateQuery(
+     () => rooms.bind({}, this.catalog.binding()),
+     (definition) => this.catalog.client.watch(definition),
+@@ -76,6 +77,8 @@ export class NewReservationComponent {
+     );
+   });
+   showRate = true;
++  private stopPolling: (() => void) | undefined;
++  polling = false;
+   loading$: Observable<boolean>;
+   alert$: Observable<{ message: string; alertType: string } | null>;
+ 
+@@ -95,11 +98,26 @@ export class NewReservationComponent {
+     this.loading$ = this.store.select(selectLoading);
+     this.alert$ = this.store.select(selectAlert);
+ 
++    this.destroyRef.onDestroy(() => this.stopPolling?.());
+     const today = new Date();
+     today.setDate(today.getDate() + 1);
+     this.tomorrow = today.toISOString().split('T')[0];
+   }
+ 
++  togglePolling(): void {
++    if (this.stopPolling) {
++      this.stopPolling();
++      this.stopPolling = undefined;
++      this.polling = false;
++    } else {
++      this.stopPolling = this.roomQuery.poll({
++        target: 'daily_rate',
++        everyMs: 500,
++      });
++      this.polling = true;
++    }
++  }
++
+   async refreshRates(): Promise<void> {
+     try {
+       await this.roomQuery.invalidate('daily_rate');
+@@ -138,6 +156,12 @@ export class NewReservationComponent {
+     }
+ 
+     const commandId = crypto.randomUUID();
++    const epoch = this.epoch;
++    try {
++      this.catalog.sessionEpoch();
++    } catch {
++      return;
++    }
+     const submitted = Object.freeze({ ...this.formData });
+     const submittedGeneration = this.editGeneration;
+     this.pendingCommandId = commandId;
+@@ -149,7 +173,9 @@ export class NewReservationComponent {
+           ReservationActions.createReservationSuccess,
+           ReservationActions.createReservationFailure,
+         ),
+-        filter((action) => action.commandId === commandId),
++        filter(
++          (action) => action.commandId === commandId && action.epoch === epoch,
++        ),
+         take(1),
+         takeUntilDestroyed(this.destroyRef),
+         finalize(() => {
+@@ -158,6 +184,11 @@ export class NewReservationComponent {
+         }),
+       )
+       .subscribe((action) => {
++        try {
++          this.catalog.sessionEpoch();
++        } catch {
++          return;
++        }
+         if (action.type === ReservationActions.createReservationFailure.type)
+           return;
+         if (this.editGeneration !== submittedGeneration) {
+@@ -168,11 +199,11 @@ export class NewReservationComponent {
+         void this.router.navigate(['/home']);
+       });
+     this.store.dispatch(
+-      ReservationActions.createReservation({ commandId, ...submitted }),
++      ReservationActions.createReservation({ commandId, epoch, ...submitted }),
+     );
+   }
+ 
+   dismissAlert(): void {
+-    this.store.dispatch(ReservationActions.clearAlert());
++    this.store.dispatch(ReservationActions.clearAlert({ epoch: this.epoch }));
+   }
+ }
+diff --git a/frontend/src/app/store/reservation/reservation.actions.ts b/frontend/src/app/store/reservation/reservation.actions.ts
+index ee6f9db..7c825b5 100644
+--- a/frontend/src/app/store/reservation/reservation.actions.ts
++++ b/frontend/src/app/store/reservation/reservation.actions.ts
+@@ -1,36 +1,48 @@
+ import { createAction, props } from '@ngrx/store';
+ import { Reservation, Room } from '../../graphql/queries';
+ 
++export const sessionChanged = createAction(
++  '[Session] Changed',
++  props<{ epoch: number }>(),
++);
++
+ // Load Reservations
+-export const loadReservations = createAction('[Reservation] Load Reservations');
++export const loadReservations = createAction(
++  '[Reservation] Load Reservations',
++  props<{ epoch: number }>(),
++);
+ 
+ export const loadReservationsSuccess = createAction(
+   '[Reservation] Load Reservations Success',
+-  props<{ reservations: Reservation[] }>(),
++  props<{ epoch: number; reservations: Reservation[] }>(),
+ );
+ 
+ export const loadReservationsFailure = createAction(
+   '[Reservation] Load Reservations Failure',
+-  props<{ error: string }>(),
++  props<{ epoch: number; error: string }>(),
+ );
+ 
+ // Load Rooms
+-export const loadRooms = createAction('[Room] Load Rooms');
++export const loadRooms = createAction(
++  '[Room] Load Rooms',
++  props<{ epoch: number }>(),
++);
+ 
+ export const loadRoomsSuccess = createAction(
+   '[Room] Load Rooms Success',
+-  props<{ rooms: Room[] }>(),
++  props<{ epoch: number; rooms: Room[] }>(),
+ );
+ 
+ export const loadRoomsFailure = createAction(
+   '[Room] Load Rooms Failure',
+-  props<{ error: string }>(),
++  props<{ epoch: number; error: string }>(),
+ );
+ 
+ // Create Reservation
+ export const createReservation = createAction(
+   '[Reservation] Create Reservation',
+   props<{
++    epoch: number;
+     commandId: string;
+     room_id: string;
+     checkin_date: string;
+@@ -40,47 +52,57 @@ export const createReservation = createAction(
+ 
+ export const createReservationSuccess = createAction(
+   '[Reservation] Create Reservation Success',
+-  props<{ commandId: string; reservations: Reservation[] }>(),
++  props<{ epoch: number; commandId: string; reservations: Reservation[] }>(),
+ );
+ 
+ export const createReservationFailure = createAction(
+   '[Reservation] Create Reservation Failure',
+-  props<{ commandId: string; error: string }>(),
++  props<{ epoch: number; commandId: string; error: string }>(),
+ );
+ 
+ // Delete Reservation
+ export const deleteReservation = createAction(
+   '[Reservation] Delete Reservation',
+-  props<{ reservationId: number }>(),
++  props<{ epoch: number; reservationId: number }>(),
+ );
+ 
+ export const deleteReservationSuccess = createAction(
+   '[Reservation] Delete Reservation Success',
+-  props<{ reservations: Reservation[] }>(),
++  props<{ epoch: number; reservations: Reservation[] }>(),
+ );
+ 
+ export const deleteReservationFailure = createAction(
+   '[Reservation] Delete Reservation Failure',
+-  props<{ error: string }>(),
++  props<{ epoch: number; error: string }>(),
+ );
+ 
+ // UI: Alert
+ export const setAlert = createAction(
+   '[UI] Set Alert',
+   props<{
++    epoch: number;
+     message: string;
+     alertType: 'success' | 'danger' | 'warning' | 'info';
+   }>(),
+ );
+ 
+-export const clearAlert = createAction('[UI] Clear Alert');
++export const clearAlert = createAction(
++  '[UI] Clear Alert',
++  props<{ epoch: number }>(),
++);
+ 
+ // UI: Confirmation Modal
+ export const openConfirmationModal = createAction(
+   '[UI] Open Confirmation Modal',
+-  props<{ reservationId: number }>(),
++  props<{ epoch: number; reservationId: number }>(),
+ );
+ 
+-export const confirmDeletion = createAction('[UI] Confirm Deletion');
++export const confirmDeletion = createAction(
++  '[UI] Confirm Deletion',
++  props<{ epoch: number }>(),
++);
+ 
+-export const cancelDeletion = createAction('[UI] Cancel Deletion');
++export const cancelDeletion = createAction(
++  '[UI] Cancel Deletion',
++  props<{ epoch: number }>(),
++);
+diff --git a/frontend/src/app/store/reservation/reservation.effects.spec.ts b/frontend/src/app/store/reservation/reservation.effects.spec.ts
+index cf851fe..a6c3077 100644
+--- a/frontend/src/app/store/reservation/reservation.effects.spec.ts
++++ b/frontend/src/app/store/reservation/reservation.effects.spec.ts
+@@ -5,24 +5,40 @@ import {
+   provideHttpClientTesting,
+ } from '@angular/common/http/testing';
+ import { Actions } from '@ngrx/effects';
+-import { provideStore, Action } from '@ngrx/store';
+-import { Subject } from 'rxjs';
++import { provideStore, Action, Store } from '@ngrx/store';
++import { AuthService } from '../../core/services/auth.service';
++import { BehaviorSubject, Observable, Subject } from 'rxjs';
+ import { ReservationEffects } from './reservation.effects';
++import { AppState } from '../app.state';
+ import { reservationReducer } from './reservation.reducer';
+ import * as actions from './reservation.actions';
+ 
+ describe('Reservation create correlation', () => {
++  let epoch: BehaviorSubject<number>;
+   let input: Subject<Action>;
+   let http: HttpTestingController;
+   let effects: ReservationEffects;
+   beforeEach(() => {
+     input = new Subject();
++    epoch = new BehaviorSubject(0);
+     TestBed.configureTestingModule({
+       providers: [
+         provideHttpClient(),
+         provideHttpClientTesting(),
+         provideStore({ reservation: reservationReducer }),
+         ReservationEffects,
++        {
++          provide: AuthService,
++          useValue: {
++            epoch: () => epoch.value,
++            epochChanges: epoch,
++            session: () => ({
++              epoch: epoch.value,
++              account: 'example-user',
++              token: 'captured-token',
++            }),
++          },
++        },
+         { provide: Actions, useValue: new Actions(input) },
+       ],
+     });
+@@ -34,6 +50,103 @@ describe('Reservation create correlation', () => {
+     TestBed.resetTestingModule();
+   });
+ 
++  it('cancels a pending save on session reset and refuses a stale command', () => {
++    const received: Action[] = [];
++    const subscription = effects.createReservation$.subscribe((result) =>
++      received.push(result),
++    );
++    const command = actions.createReservation({
++      epoch: 0,
++      commandId: 'old-save',
++      room_id: 'room_1',
++      checkin_date: '2027-08-01',
++      checkout_date: '2027-08-03',
++    });
++    input.next(command);
++    const request = http.expectOne('/graphql');
++    epoch.next(1);
++    expect(request.cancelled).toBeTrue();
++    input.next(command);
++    http.expectNone('/graphql');
++    expect(received).toEqual([]);
++    subscription.unsubscribe();
++  });
++
++  it('rejects an old confirmation without closing or deleting the new account selection', () => {
++    const store = TestBed.inject(Store<AppState>);
++    epoch.next(1);
++    store.dispatch(actions.sessionChanged({ epoch: 1 }));
++    store.dispatch(
++      actions.openConfirmationModal({ epoch: 1, reservationId: 42 }),
++    );
++    const received: Action[] = [];
++    const subscription = effects.confirmDeletion$.subscribe((result) =>
++      received.push(result),
++    );
++    const stale = actions.confirmDeletion({ epoch: 0 });
++    store.dispatch(stale);
++    input.next(stale);
++    expect(received).toEqual([]);
++    const stateSubscription = store.select('reservation').subscribe((state) => {
++      expect(state.confirmModalOpen).toBeTrue();
++      expect(state.pendingDeleteId).toBe(42);
++    });
++    stateSubscription.unsubscribe();
++    input.next(actions.confirmDeletion({ epoch: 1 }));
++    expect(received).toEqual([
++      actions.deleteReservation({ epoch: 1, reservationId: 42 }),
++    ]);
++    subscription.unsubscribe();
++  });
++
++  it('does not let an old read action cancel the new session read', () => {
++    epoch.next(1);
++    const received: Action[] = [];
++    const sources: Observable<Action>[] = [
++      effects.loadReservations$,
++      effects.loadRooms$,
++    ];
++    const subscriptions = sources.map((source) =>
++      source.subscribe((result) => received.push(result)),
++    );
++    input.next(actions.loadReservations({ epoch: 1 }));
++    input.next(actions.loadRooms({ epoch: 1 }));
++    const requests = http.match('/graphql');
++    expect(requests.length).toBe(2);
++    input.next(actions.loadReservations({ epoch: 0 }));
++    input.next(actions.loadRooms({ epoch: 0 }));
++    expect(requests.every((request) => !request.cancelled)).toBeTrue();
++    http.expectNone('/graphql');
++    requests[0].flush({
++      data: { getAllReservations: { success: true, reservations: [] } },
++    });
++    requests[1].flush({ data: { getAllRooms: { success: true, rooms: [] } } });
++    expect(received).toEqual([
++      actions.loadReservationsSuccess({ epoch: 1, reservations: [] }),
++      actions.loadRoomsSuccess({ epoch: 1, rooms: [] }),
++    ]);
++    subscriptions.forEach((subscription) => subscription.unsubscribe());
++  });
++
++  it('cancels both legacy reads and deletion at the same boundary', () => {
++    const sources: Observable<Action>[] = [
++      effects.loadReservations$,
++      effects.loadRooms$,
++      effects.deleteReservation$,
++    ];
++    const subscriptions = sources.map((effect) =>
++      effect.subscribe(() => fail('Old session emitted')),
++    );
++    input.next(actions.loadReservations({ epoch: 0 }));
++    input.next(actions.loadRooms({ epoch: 0 }));
++    input.next(actions.deleteReservation({ epoch: 0, reservationId: 42 }));
++    const requests = http.match('/graphql');
++    expect(requests.length).toBe(3);
++    epoch.next(1);
++    expect(requests.every((request) => request.cancelled)).toBeTrue();
++    subscriptions.forEach((subscription) => subscription.unsubscribe());
++  });
++
+   for (const scenario of ['success', 'business failure', 'HTTP failure']) {
+     it(`echoes the local command ID on ${scenario} without sending it as GraphQL input`, () => {
+       const received: Action[] = [];
+@@ -42,6 +155,7 @@ describe('Reservation create correlation', () => {
+       );
+       input.next(
+         actions.createReservation({
++          epoch: 0,
+           commandId: 'request-one',
+           room_id: 'room_1',
+           checkin_date: '2027-08-01',
+@@ -49,6 +163,9 @@ describe('Reservation create correlation', () => {
+         }),
+       );
+       const request = http.expectOne('/graphql');
++      expect(request.request.headers.get('Authorization')).toBe(
++        'Bearer captured-token',
++      );
+       expect(request.request.body.variables.input).toEqual({
+         room_id: 'room_1',
+         checkin_date: '2027-08-01',
+@@ -70,6 +187,7 @@ describe('Reservation create correlation', () => {
+           },
+         });
+       expect(received.length).toBe(1);
++      expect((received[0] as { epoch?: number }).epoch).toBe(0);
+       expect((received[0] as { commandId?: string }).commandId).toBe(
+         'request-one',
+       );
+diff --git a/frontend/src/app/store/reservation/reservation.effects.ts b/frontend/src/app/store/reservation/reservation.effects.ts
+index 9f50f1c..6b6588a 100644
+--- a/frontend/src/app/store/reservation/reservation.effects.ts
++++ b/frontend/src/app/store/reservation/reservation.effects.ts
+@@ -8,7 +8,8 @@ import {
+   switchMap,
+   withLatestFrom,
+ } from 'rxjs/operators';
+-import { of } from 'rxjs';
++import { EMPTY, Observable, filter, of, takeUntil } from 'rxjs';
++import { AuthService, HotelSession } from '../../core/services/auth.service';
+ import { Store } from '@ngrx/store';
+ import * as ReservationActions from './reservation.actions';
+ import {
+@@ -37,36 +38,63 @@ export class ReservationEffects {
+     private actions$: Actions,
+     private http: HttpClient,
+     private store: Store<AppState>,
++    private auth: AuthService,
+   ) {}
+ 
++  sessionChanged$ = createEffect(() =>
++    this.auth.epochChanges.pipe(
++      map((epoch) => ReservationActions.sessionChanged({ epoch })),
++    ),
++  );
++
++  private inSession<T>(
++    epoch: number,
++    request: (session: HotelSession) => Observable<T>,
++  ): Observable<T> {
++    const session = this.auth.session();
++    if (!session || session.epoch !== epoch) return EMPTY;
++    return request(session).pipe(
++      takeUntil(
++        this.auth.epochChanges.pipe(filter((value) => value !== epoch)),
++      ),
++      filter(() => this.auth.session()?.epoch === epoch),
++    );
++  }
++
+   loadReservations$ = createEffect(() =>
+     this.actions$.pipe(
+       ofType(ReservationActions.loadReservations),
+-      switchMap(() =>
+-        this.http
+-          .post<
+-            GraphQLResponse<{ getAllReservations: ReservationResult }>
+-          >(GRAPHQL_URL, { query: GET_ALL_RESERVATIONS })
+-          .pipe(
+-            map((response) => {
+-              const result = response.data.getAllReservations;
+-              if (result.success) {
+-                return ReservationActions.loadReservationsSuccess({
+-                  reservations: result.reservations ?? [],
++      filter((action) => this.auth.session()?.epoch === action.epoch),
++      switchMap((action) =>
++        this.inSession(action.epoch, (session) =>
++          this.http
++            .post<
++              GraphQLResponse<{ getAllReservations: ReservationResult }>
++            >(GRAPHQL_URL, { query: GET_ALL_RESERVATIONS }, { headers: { Authorization: `Bearer ${session.token}` } })
++            .pipe(
++              map((response) => {
++                const result = response.data.getAllReservations;
++                if (result.success) {
++                  return ReservationActions.loadReservationsSuccess({
++                    epoch: action.epoch,
++                    reservations: result.reservations ?? [],
++                  });
++                }
++                return ReservationActions.loadReservationsFailure({
++                  epoch: action.epoch,
++                  error: result.errors?.[0] ?? 'Unknown error',
+                 });
+-              }
+-              return ReservationActions.loadReservationsFailure({
+-                error: result.errors?.[0] ?? 'Unknown error',
+-              });
+-            }),
+-            catchError((error) =>
+-              of(
+-                ReservationActions.loadReservationsFailure({
+-                  error: error.message ?? 'Network error',
+-                }),
++              }),
++              catchError((error) =>
++                of(
++                  ReservationActions.loadReservationsFailure({
++                    epoch: action.epoch,
++                    error: error.message ?? 'Network error',
++                  }),
++                ),
+               ),
+             ),
+-          ),
++        ),
+       ),
+     ),
+   );
+@@ -74,31 +102,41 @@ export class ReservationEffects {
+   loadRooms$ = createEffect(() =>
+     this.actions$.pipe(
+       ofType(ReservationActions.loadRooms),
+-      switchMap(() =>
+-        this.http
+-          .post<GraphQLResponse<{ getAllRooms: RoomResult }>>(GRAPHQL_URL, {
+-            query: GET_ALL_ROOMS,
+-          })
+-          .pipe(
+-            map((response) => {
+-              const result = response.data.getAllRooms;
+-              if (result.success) {
+-                return ReservationActions.loadRoomsSuccess({
+-                  rooms: result.rooms ?? [],
++      filter((action) => this.auth.session()?.epoch === action.epoch),
++      switchMap((action) =>
++        this.inSession(action.epoch, (session) =>
++          this.http
++            .post<GraphQLResponse<{ getAllRooms: RoomResult }>>(
++              GRAPHQL_URL,
++              {
++                query: GET_ALL_ROOMS,
++              },
++              { headers: { Authorization: `Bearer ${session.token}` } },
++            )
++            .pipe(
++              map((response) => {
++                const result = response.data.getAllRooms;
++                if (result.success) {
++                  return ReservationActions.loadRoomsSuccess({
++                    epoch: action.epoch,
++                    rooms: result.rooms ?? [],
++                  });
++                }
++                return ReservationActions.loadRoomsFailure({
++                  epoch: action.epoch,
++                  error: result.errors?.[0] ?? 'Unknown error',
+                 });
+-              }
+-              return ReservationActions.loadRoomsFailure({
+-                error: result.errors?.[0] ?? 'Unknown error',
+-              });
+-            }),
+-            catchError((error) =>
+-              of(
+-                ReservationActions.loadRoomsFailure({
+-                  error: error.message ?? 'Network error',
+-                }),
++              }),
++              catchError((error) =>
++                of(
++                  ReservationActions.loadRoomsFailure({
++                    epoch: action.epoch,
++                    error: error.message ?? 'Network error',
++                  }),
++                ),
+               ),
+             ),
+-          ),
++        ),
+       ),
+     ),
+   );
+@@ -107,43 +145,49 @@ export class ReservationEffects {
+     this.actions$.pipe(
+       ofType(ReservationActions.createReservation),
+       mergeMap((action) =>
+-        this.http
+-          .post<GraphQLResponse<{ createReservation: ReservationResult }>>(
+-            GRAPHQL_URL,
+-            {
+-              query: CREATE_RESERVATION,
+-              variables: {
+-                input: {
+-                  room_id: action.room_id,
+-                  checkin_date: action.checkin_date,
+-                  checkout_date: action.checkout_date,
++        this.inSession(action.epoch, (session) =>
++          this.http
++            .post<GraphQLResponse<{ createReservation: ReservationResult }>>(
++              GRAPHQL_URL,
++              {
++                query: CREATE_RESERVATION,
++                variables: {
++                  input: {
++                    room_id: action.room_id,
++                    checkin_date: action.checkin_date,
++                    checkout_date: action.checkout_date,
++                  },
+                 },
+               },
+-            },
+-          )
+-          .pipe(
+-            map((response) => {
+-              const result = response.data.createReservation;
+-              if (result.success) {
+-                return ReservationActions.createReservationSuccess({
++              { headers: { Authorization: `Bearer ${session.token}` } },
++            )
++            .pipe(
++              map((response) => {
++                const result = response.data.createReservation;
++                if (result.success) {
++                  return ReservationActions.createReservationSuccess({
++                    epoch: action.epoch,
++                    commandId: action.commandId,
++                    reservations: result.reservations ?? [],
++                  });
++                }
++                return ReservationActions.createReservationFailure({
++                  epoch: action.epoch,
+                   commandId: action.commandId,
+-                  reservations: result.reservations ?? [],
++                  error: result.errors?.[0] ?? 'Failed to create reservation',
+                 });
+-              }
+-              return ReservationActions.createReservationFailure({
+-                commandId: action.commandId,
+-                error: result.errors?.[0] ?? 'Failed to create reservation',
+-              });
+-            }),
+-            catchError((error) =>
+-              of(
+-                ReservationActions.createReservationFailure({
+-                  commandId: action.commandId,
+-                  error: error.message ?? 'Network error',
+-                }),
++              }),
++              catchError((error) =>
++                of(
++                  ReservationActions.createReservationFailure({
++                    epoch: action.epoch,
++                    commandId: action.commandId,
++                    error: error.message ?? 'Network error',
++                  }),
++                ),
+               ),
+             ),
+-          ),
++        ),
+       ),
+     ),
+   );
+@@ -151,17 +195,20 @@ export class ReservationEffects {
+   confirmDeletion$ = createEffect(() =>
+     this.actions$.pipe(
+       ofType(ReservationActions.confirmDeletion),
++      filter((action) => this.auth.session()?.epoch === action.epoch),
+       withLatestFrom(this.store.select(selectPendingDeleteId)),
+-      mergeMap(([, pendingDeleteId]) => {
++      mergeMap(([action, pendingDeleteId]) => {
+         if (pendingDeleteId === null) {
+           return of(
+             ReservationActions.deleteReservationFailure({
++              epoch: action.epoch,
+               error: 'No reservation selected for deletion',
+             }),
+           );
+         }
+         return of(
+           ReservationActions.deleteReservation({
++            epoch: action.epoch,
+             reservationId: pendingDeleteId,
+           }),
+         );
+@@ -173,34 +220,40 @@ export class ReservationEffects {
+     this.actions$.pipe(
+       ofType(ReservationActions.deleteReservation),
+       mergeMap((action) =>
+-        this.http
+-          .post<GraphQLResponse<{ deleteReservation: ReservationResult }>>(
+-            GRAPHQL_URL,
+-            {
+-              query: DELETE_RESERVATION,
+-              variables: { reservationId: action.reservationId },
+-            },
+-          )
+-          .pipe(
+-            map((response) => {
+-              const result = response.data.deleteReservation;
+-              if (result.success) {
+-                return ReservationActions.deleteReservationSuccess({
+-                  reservations: result.reservations ?? [],
++        this.inSession(action.epoch, (session) =>
++          this.http
++            .post<GraphQLResponse<{ deleteReservation: ReservationResult }>>(
++              GRAPHQL_URL,
++              {
++                query: DELETE_RESERVATION,
++                variables: { reservationId: action.reservationId },
++              },
++              { headers: { Authorization: `Bearer ${session.token}` } },
++            )
++            .pipe(
++              map((response) => {
++                const result = response.data.deleteReservation;
++                if (result.success) {
++                  return ReservationActions.deleteReservationSuccess({
++                    epoch: action.epoch,
++                    reservations: result.reservations ?? [],
++                  });
++                }
++                return ReservationActions.deleteReservationFailure({
++                  epoch: action.epoch,
++                  error: result.errors?.[0] ?? 'Failed to delete reservation',
+                 });
+-              }
+-              return ReservationActions.deleteReservationFailure({
+-                error: result.errors?.[0] ?? 'Failed to delete reservation',
+-              });
+-            }),
+-            catchError((error) =>
+-              of(
+-                ReservationActions.deleteReservationFailure({
+-                  error: error.message ?? 'Network error',
+-                }),
++              }),
++              catchError((error) =>
++                of(
++                  ReservationActions.deleteReservationFailure({
++                    epoch: action.epoch,
++                    error: error.message ?? 'Network error',
++                  }),
++                ),
+               ),
+             ),
+-          ),
++        ),
+       ),
+     ),
+   );
+diff --git a/frontend/src/app/store/reservation/reservation.reducer.spec.ts b/frontend/src/app/store/reservation/reservation.reducer.spec.ts
+index 52e89ee..1419bbd 100644
+--- a/frontend/src/app/store/reservation/reservation.reducer.spec.ts
++++ b/frontend/src/app/store/reservation/reservation.reducer.spec.ts
+@@ -29,7 +29,7 @@ describe('ReservationReducer', () => {
+     it('should set loading to true', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.loadReservations(),
++        ReservationActions.loadReservations({ epoch: 0 }),
+       );
+       expect(state.loading).toBeTrue();
+       expect(state.error).toBeNull();
+@@ -39,6 +39,7 @@ describe('ReservationReducer', () => {
+       const state = reservationReducer(
+         initialState,
+         ReservationActions.loadReservationsSuccess({
++          epoch: 0,
+           reservations: [mockReservation],
+         }),
+       );
+@@ -49,7 +50,10 @@ describe('ReservationReducer', () => {
+     it('should set error on failure', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.loadReservationsFailure({ error: 'fetch failed' }),
++        ReservationActions.loadReservationsFailure({
++          epoch: 0,
++          error: 'fetch failed',
++        }),
+       );
+       expect(state.loading).toBeFalse();
+       expect(state.error).toBe('fetch failed');
+@@ -60,7 +64,7 @@ describe('ReservationReducer', () => {
+     it('should set loading to true', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.loadRooms(),
++        ReservationActions.loadRooms({ epoch: 0 }),
+       );
+       expect(state.loading).toBeTrue();
+     });
+@@ -68,7 +72,7 @@ describe('ReservationReducer', () => {
+     it('should populate rooms on success', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.loadRoomsSuccess({ rooms: [mockRoom] }),
++        ReservationActions.loadRoomsSuccess({ epoch: 0, rooms: [mockRoom] }),
+       );
+       expect(state.loading).toBeFalse();
+       expect(state.rooms).toEqual([mockRoom]);
+@@ -77,7 +81,10 @@ describe('ReservationReducer', () => {
+     it('should set error on failure', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.loadRoomsFailure({ error: 'rooms failed' }),
++        ReservationActions.loadRoomsFailure({
++          epoch: 0,
++          error: 'rooms failed',
++        }),
+       );
+       expect(state.error).toBe('rooms failed');
+     });
+@@ -88,6 +95,7 @@ describe('ReservationReducer', () => {
+       const state = reservationReducer(
+         initialState,
+         ReservationActions.createReservation({
++          epoch: 0,
+           commandId: 'test-create',
+           room_id: 'room_1',
+           checkin_date: '2026-06-01',
+@@ -101,6 +109,7 @@ describe('ReservationReducer', () => {
+       const state = reservationReducer(
+         initialState,
+         ReservationActions.createReservationSuccess({
++          epoch: 0,
+           commandId: 'test-create',
+           reservations: [mockReservation],
+         }),
+@@ -114,6 +123,7 @@ describe('ReservationReducer', () => {
+       const state = reservationReducer(
+         initialState,
+         ReservationActions.createReservationFailure({
++          epoch: 0,
+           commandId: 'test-create',
+           error: 'room taken',
+         }),
+@@ -132,7 +142,7 @@ describe('ReservationReducer', () => {
+       };
+       const state = reservationReducer(
+         preState,
+-        ReservationActions.deleteReservation({ reservationId: 1 }),
++        ReservationActions.deleteReservation({ epoch: 0, reservationId: 1 }),
+       );
+       expect(state.loading).toBeTrue();
+       expect(state.confirmModalOpen).toBeFalse();
+@@ -142,7 +152,10 @@ describe('ReservationReducer', () => {
+     it('should update reservations and set success alert on success', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.deleteReservationSuccess({ reservations: [] }),
++        ReservationActions.deleteReservationSuccess({
++          epoch: 0,
++          reservations: [],
++        }),
+       );
+       expect(state.reservations).toEqual([]);
+       expect(state.alert?.alertType).toBe('success');
+@@ -151,7 +164,10 @@ describe('ReservationReducer', () => {
+     it('should set danger alert on failure', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.deleteReservationFailure({ error: 'delete failed' }),
++        ReservationActions.deleteReservationFailure({
++          epoch: 0,
++          error: 'delete failed',
++        }),
+       );
+       expect(state.alert?.alertType).toBe('danger');
+     });
+@@ -162,6 +178,7 @@ describe('ReservationReducer', () => {
+       const state = reservationReducer(
+         initialState,
+         ReservationActions.setAlert({
++          epoch: 0,
+           message: 'hello',
+           alertType: 'warning',
+         }),
+@@ -176,7 +193,7 @@ describe('ReservationReducer', () => {
+       };
+       const state = reservationReducer(
+         preState,
+-        ReservationActions.clearAlert(),
++        ReservationActions.clearAlert({ epoch: 0 }),
+       );
+       expect(state.alert).toBeNull();
+     });
+@@ -186,7 +203,10 @@ describe('ReservationReducer', () => {
+     it('should open the modal with the pending id', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.openConfirmationModal({ reservationId: 42 }),
++        ReservationActions.openConfirmationModal({
++          epoch: 0,
++          reservationId: 42,
++        }),
+       );
+       expect(state.confirmModalOpen).toBeTrue();
+       expect(state.pendingDeleteId).toBe(42);
+@@ -196,7 +216,7 @@ describe('ReservationReducer', () => {
+       const preState = { ...initialState, confirmModalOpen: true };
+       const state = reservationReducer(
+         preState,
+-        ReservationActions.confirmDeletion(),
++        ReservationActions.confirmDeletion({ epoch: 0 }),
+       );
+       expect(state.confirmModalOpen).toBeFalse();
+     });
+@@ -209,10 +229,65 @@ describe('ReservationReducer', () => {
+       };
+       const state = reservationReducer(
+         preState,
+-        ReservationActions.cancelDeletion(),
++        ReservationActions.cancelDeletion({ epoch: 0 }),
+       );
+       expect(state.confirmModalOpen).toBeFalse();
+       expect(state.pendingDeleteId).toBeNull();
+     });
+   });
+ });
++
++describe('Reservation session isolation', () => {
++  it('clears all cached data and UI state, then ignores old success and failure actions', () => {
++    const active = {
++      ...initialState,
++      reservations: [mockReservation],
++      loading: true,
++      error: 'old error',
++      alert: { message: 'old alert', alertType: 'danger' },
++      confirmModalOpen: true,
++      pendingDeleteId: 1,
++    };
++    const reset = reservationReducer(
++      active,
++      ReservationActions.sessionChanged({ epoch: 2 }),
++    );
++    expect(reset).toEqual({ ...initialState, sessionEpoch: 2 });
++    const stale = [
++      ReservationActions.loadReservationsSuccess({
++        epoch: 1,
++        reservations: active.reservations,
++      }),
++      ReservationActions.loadRoomsFailure({ epoch: 1, error: 'old failure' }),
++      ReservationActions.createReservationSuccess({
++        epoch: 1,
++        commandId: 'old',
++        reservations: active.reservations,
++      }),
++      ReservationActions.createReservationFailure({
++        epoch: 1,
++        commandId: 'old',
++        error: 'old failure',
++      }),
++      ReservationActions.deleteReservationSuccess({
++        epoch: 1,
++        reservations: [],
++      }),
++      ReservationActions.deleteReservationFailure({
++        epoch: 1,
++        error: 'old failure',
++      }),
++    ];
++    for (const action of stale)
++      expect(reservationReducer(reset, action)).toBe(reset);
++    expect(
++      reservationReducer(
++        reset,
++        ReservationActions.loadReservationsSuccess({
++          epoch: 2,
++          reservations: active.reservations,
++        }),
++      ).reservations,
++    ).toEqual(active.reservations);
++  });
++});
+diff --git a/frontend/src/app/store/reservation/reservation.reducer.ts b/frontend/src/app/store/reservation/reservation.reducer.ts
+index 3ca147b..49f66af 100644
+--- a/frontend/src/app/store/reservation/reservation.reducer.ts
++++ b/frontend/src/app/store/reservation/reservation.reducer.ts
+@@ -1,8 +1,9 @@
+-import { createReducer, on } from '@ngrx/store';
++import { Action, createReducer, on } from '@ngrx/store';
+ import { Reservation, Room } from '../../graphql/queries';
+ import * as ReservationActions from './reservation.actions';
+ 
+ export interface ReservationState {
++  sessionEpoch: number;
+   reservations: Reservation[];
+   rooms: Room[];
+   loading: boolean;
+@@ -13,6 +14,7 @@ export interface ReservationState {
+ }
+ 
+ export const initialState: ReservationState = {
++  sessionEpoch: 0,
+   reservations: [],
+   rooms: [],
+   loading: false,
+@@ -22,7 +24,7 @@ export const initialState: ReservationState = {
+   pendingDeleteId: null,
+ };
+ 
+-export const reservationReducer = createReducer(
++const reduceReservation = createReducer(
+   initialState,
+ 
+   // Load Reservations
+@@ -137,3 +139,22 @@ export const reservationReducer = createReducer(
+     pendingDeleteId: null,
+   })),
+ );
++
++// Defense in depth: canceled transports must not be the only ownership guard.
++export function reservationReducer(
++  state: ReservationState | undefined,
++  action: Action,
++): ReservationState {
++  const current = state ?? initialState;
++  if (action.type === ReservationActions.sessionChanged.type) {
++    return {
++      ...initialState,
++      sessionEpoch: (
++        action as ReturnType<typeof ReservationActions.sessionChanged>
++      ).epoch,
++    };
++  }
++  if ('epoch' in action && action.epoch !== current.sessionEpoch)
++    return current;
++  return reduceReservation(current, action);
++}
+diff --git a/frontend/src/app/tandrove/booking-availability.spec.ts b/frontend/src/app/tandrove/booking-availability.spec.ts
+index d944d8a..2f2021c 100644
+--- a/frontend/src/app/tandrove/booking-availability.spec.ts
++++ b/frontend/src/app/tandrove/booking-availability.spec.ts
+@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
+ import { provideRouter } from '@angular/router';
+ import { provideStore, Store } from '@ngrx/store';
+ import { Actions } from '@ngrx/effects';
+-import { Subject } from 'rxjs';
++import { Subject, of } from 'rxjs';
+ import { AuthService } from '../core/services/auth.service';
+ import { reservationReducer } from '../store/reservation/reservation.reducer';
+ import { NewReservationComponent } from '../screens/reservations/new/new-reservation.component';
+@@ -17,7 +17,11 @@ describe('Booking room availability', () => {
+         { provide: Actions, useValue: new Actions(new Subject()) },
+         {
+           provide: AuthService,
+-          useValue: { sessionToken: () => 'trial-token' },
++          useValue: {
++            sessionToken: () => 'trial-token',
++            epoch: () => 0,
++            epochChanges: of(0),
++          },
+         },
+       ],
+     });
+diff --git a/frontend/src/app/tandrove/booking-save.spec.ts b/frontend/src/app/tandrove/booking-save.spec.ts
+index d03446c..3a2a39f 100644
+--- a/frontend/src/app/tandrove/booking-save.spec.ts
++++ b/frontend/src/app/tandrove/booking-save.spec.ts
+@@ -2,19 +2,21 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
+ import { provideRouter, Router } from '@angular/router';
+ import { provideStore, Store, Action } from '@ngrx/store';
+ import { Actions } from '@ngrx/effects';
+-import { Subject } from 'rxjs';
++import { BehaviorSubject, Subject } from 'rxjs';
+ import { AuthService } from '../core/services/auth.service';
+ import { reservationReducer } from '../store/reservation/reservation.reducer';
+ import * as actions from '../store/reservation/reservation.actions';
+ import { NewReservationComponent } from '../screens/reservations/new/new-reservation.component';
+ 
+ describe('Booking save ownership', () => {
++  let epoch: BehaviorSubject<number>;
+   let outcomes: Subject<Action>;
+   let fixture: ComponentFixture<NewReservationComponent>;
+   let component: NewReservationComponent;
+   let dispatch: jasmine.Spy;
+   let navigate: jasmine.Spy;
+   beforeEach(async () => {
++    epoch = new BehaviorSubject(0);
+     outcomes = new Subject<Action>();
+     TestBed.configureTestingModule({
+       imports: [NewReservationComponent],
+@@ -24,7 +26,11 @@ describe('Booking save ownership', () => {
+         { provide: Actions, useValue: new Actions(outcomes) },
+         {
+           provide: AuthService,
+-          useValue: { sessionToken: () => 'trial-token' },
++          useValue: {
++            sessionToken: () => 'trial-token',
++            epoch: () => epoch.value,
++            epochChanges: epoch,
++          },
+         },
+       ],
+     });
+@@ -71,7 +77,7 @@ describe('Booking save ownership', () => {
+     TestBed.resetTestingModule();
+   });
+   const success = (commandId: string) =>
+-    actions.createReservationSuccess({ commandId, reservations: [] });
++    actions.createReservationSuccess({ epoch: 0, commandId, reservations: [] });
+ 
+   it('observes a matching success dispatched synchronously and settles once', () => {
+     dispatch.and.callFake((action) => outcomes.next(success(action.commandId)));
+@@ -88,6 +94,7 @@ describe('Booking save ownership', () => {
+     outcomes.next(success('another-editor'));
+     outcomes.next(
+       actions.createReservationFailure({
++        epoch: 0,
+         commandId: 'another-editor',
+         error: 'Other failure',
+       }),
+@@ -105,7 +112,11 @@ describe('Booking save ownership', () => {
+     const first = component.pendingCommandId!;
+     const draft = { ...component.formData };
+     outcomes.next(
+-      actions.createReservationFailure({ commandId: first, error: 'Overlap' }),
++      actions.createReservationFailure({
++        epoch: 0,
++        commandId: first,
++        error: 'Overlap',
++      }),
+     );
+     expect(component.pendingCommandId).toBeUndefined();
+     expect(component.formData).toEqual(draft);
+@@ -120,6 +131,23 @@ describe('Booking save ownership', () => {
+     expect(navigate).toHaveBeenCalledTimes(1);
+   });
+ 
++  it('rejects a wrong-epoch result and a matching result after synchronous logout before destruction', () => {
++    component.onSubmit();
++    const id = component.pendingCommandId!;
++    outcomes.next(
++      actions.createReservationSuccess({
++        epoch: 1,
++        commandId: id,
++        reservations: [],
++      }),
++    );
++    expect(component.pendingCommandId).toBe(id);
++    epoch.next(1);
++    outcomes.next(success(id));
++    expect(navigate).not.toHaveBeenCalled();
++    expect(component.saveNotice).toBe('');
++  });
++
+   it('releases the listener when its component is destroyed', () => {
+     component.onSubmit();
+     const id = component.pendingCommandId!;
+diff --git a/frontend/src/app/tandrove/hotel-transport.spec.ts b/frontend/src/app/tandrove/hotel-transport.spec.ts
+index 1c61a7b..d36096a 100644
+--- a/frontend/src/app/tandrove/hotel-transport.spec.ts
++++ b/frontend/src/app/tandrove/hotel-transport.spec.ts
+@@ -1,4 +1,5 @@
+ import { TestBed } from '@angular/core/testing';
++import { BehaviorSubject } from 'rxjs';
+ import { signal } from '@angular/core';
+ import { AuthService } from '../core/services/auth.service';
+ import { hotelTransport } from './hotel-transport';
+@@ -25,16 +26,25 @@ const response = (rate = 140) => ({
+ 
+ describe('Hotel Tandrove integration', () => {
+   const token = signal<string | null>('trial-token');
++  let epoch: BehaviorSubject<number>;
+   let send: jasmine.Spy;
+   beforeEach(() => {
+     token.set('trial-token');
++    epoch = new BehaviorSubject(0);
+     send = spyOn(window, 'fetch').and.callFake(
+       async () => new Response(JSON.stringify(response())),
+     );
+     TestBed.configureTestingModule({
+       providers: [
+         RoomCatalog,
+-        { provide: AuthService, useValue: { sessionToken: token } },
++        {
++          provide: AuthService,
++          useValue: {
++            sessionToken: token,
++            epoch: () => epoch.value,
++            epochChanges: epoch,
++          },
++        },
+       ],
+     });
+   });
+@@ -151,20 +161,56 @@ describe('Hotel Tandrove integration', () => {
+     const full = catalog.client.watch(rooms.bind({}, catalog.binding()));
+     await full.ensure();
+     token.set(null);
++    epoch.next(1);
+     expect(() => catalog.binding()).toThrowError(
+       'Hotel session changed. Sign in again.',
+     );
+-    TestBed.tick();
+     await expectAsync(full.ensure()).toBeRejected();
+     TestBed.resetTestingModule();
+     TestBed.configureTestingModule({
+       providers: [
+         RoomCatalog,
+-        { provide: AuthService, useValue: { sessionToken: token } },
++        {
++          provide: AuthService,
++          useValue: {
++            sessionToken: token,
++            epoch: () => epoch.value,
++            epochChanges: epoch,
++          },
++        },
+       ],
+     });
+     expect(() => TestBed.inject(RoomCatalog)).toThrowError(
+       'Sign in before loading rooms.',
+     );
+   });
++  it('starts a distinct catalog for a new epoch even with an identical token', async () => {
++    const old = TestBed.inject(RoomCatalog);
++    const full = old.client.watch(rooms.bind({}, old.binding()));
++    await full.ensure();
++    epoch.next(1);
++    expect(() => old.binding()).toThrow();
++    await expectAsync(full.ensure()).toBeRejected();
++    send.and.callFake(async () => new Response(JSON.stringify(response(155))));
++    const fresh = TestBed.runInInjectionContext(() => new RoomCatalog());
++    const next = fresh.client.watch(rooms.bind({}, fresh.binding()));
++    await next.ensure();
++    expect(next.getSnapshot().records?.[0]?.data.daily_rate).toBe(155);
++    expect(send.calls.count()).toBe(2);
++  });
++
++  it('cancels retry backoff when the session ends', async () => {
++    spyOn(Math, 'random').and.returnValue(0.99);
++    const catalog = TestBed.inject(RoomCatalog);
++    const full = catalog.client.watch(rooms.bind({}, catalog.binding()));
++    send.and.callFake(async () => new Response('Unavailable', { status: 503 }));
++    const pending = full.ensure().catch(() => undefined);
++    // Let the first HTTP failure schedule its 100ms retry, then close its owner.
++    await new Promise((resolve) => setTimeout(resolve, 20));
++    expect(send.calls.count()).toBe(1);
++    epoch.next(1);
++    await pending;
++    await new Promise((resolve) => setTimeout(resolve, 150));
++    expect(send.calls.count()).toBe(1);
++  });
+ });
+diff --git a/frontend/src/app/tandrove/room-catalog.ts b/frontend/src/app/tandrove/room-catalog.ts
+index d70850f..6cc05b6 100644
+--- a/frontend/src/app/tandrove/room-catalog.ts
++++ b/frontend/src/app/tandrove/room-catalog.ts
+@@ -1,4 +1,5 @@
+-import { DestroyRef, Injectable, effect, inject } from '@angular/core';
++import { DestroyRef, Injectable, inject } from '@angular/core';
++import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+ import { createGraphQLClient } from '@tandrove/graphql';
+ import { schema } from './generated/hotel';
+ import { AuthService } from '../core/services/auth.service';
+@@ -18,6 +19,7 @@ export const roomRates = rooms.select({ id: true, daily_rate: true });
+ export class RoomCatalog {
+   private readonly auth = inject(AuthService);
+   private readonly token = this.auth.sessionToken();
++  private readonly epoch = this.auth.epoch();
+   readonly client = createGraphQLClient({
+     transport: hotelTransport(
+       new URL('/graphql', location.origin).href,
+@@ -31,15 +33,26 @@ export class RoomCatalog {
+     },
+   });
+   constructor() {
+-    effect(() => {
+-      if (this.auth.sessionToken() !== this.token) this.client.dispose();
++    this.auth.epochChanges.pipe(takeUntilDestroyed()).subscribe((epoch) => {
++      if (epoch !== this.epoch) this.client.dispose();
+     });
+     inject(DestroyRef).onDestroy(() => this.client.dispose());
+   }
+   binding() {
+-    if (this.auth.sessionToken() !== this.token)
++    if (
++      this.auth.epoch() !== this.epoch ||
++      this.auth.sessionToken() !== this.token
++    )
+       throw new Error('Hotel session changed. Sign in again.');
+-    return { source: 'hotel-api', scope: 'booking-session' } as const;
++    return {
++      source: 'hotel-api',
++      scope: `booking-session-${this.epoch}`,
++    } as const;
++  }
++
++  sessionEpoch(): number {
++    this.binding();
++    return this.epoch;
+   }
+   private requireToken(): string {
+     if (!this.token) throw new Error('Sign in before loading rooms.');
