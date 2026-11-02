@@ -123,7 +123,7 @@ function packedAngular() {
       exports: {
         '.': {
           default: './fesm2022/tandrove-angular.mjs',
-          types: './types/tandrove-angular.d.ts',
+          types: './index.d.ts',
         },
       },
     },
@@ -134,7 +134,7 @@ function packedAngular() {
       'README.md',
       'LICENSE',
       'fesm2022/tandrove-angular.mjs',
-      'types/tandrove-angular.d.ts',
+      'index.d.ts',
     ],
   };
 }

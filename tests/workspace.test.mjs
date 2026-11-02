@@ -2,10 +2,34 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { parse } from 'yaml';
+import {
+  angularBuildTarget,
+  angularCompatibilityTargets,
+  angularPeerRange,
+} from '../scripts/angular-compatibility.mjs';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), 'utf8');
 const json = (path) => JSON.parse(read(path));
+
+test('Angular build floor and CI targets stay aligned with the supported peer contract', () => {
+  const manifest = json('packages/angular/package.json');
+  assert.equal(manifest.peerDependencies['@angular/core'], angularPeerRange);
+  for (const name of ['core', 'compiler', 'compiler-cli'])
+    assert.equal(
+      manifest.devDependencies[`@angular/${name}`],
+      angularBuildTarget.angular,
+    );
+  assert.equal(
+    manifest.devDependencies.typescript,
+    angularBuildTarget.typescript,
+  );
+  const workflow = parse(read('.github/workflows/ci.yml'));
+  assert.deepEqual(
+    workflow.jobs['angular-compatibility'].strategy.matrix.angular,
+    angularCompatibilityTargets.map(({ angular }) => angular),
+  );
+});
 
 test('root is private and the runtime foundation has no framework or platform dependencies', () => {
   assert.equal(json('package.json').private, true);

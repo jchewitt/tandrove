@@ -149,7 +149,8 @@ These are four planned readiness slices, not a promise of four commits or a rele
 
 ### B7 validation follow-ups
 
-- [x] B7b.1 Prepare the [existing-application protocol](APPLICATION-TRIAL.md), compatibility preflight and exact local tarball handoff. No actual application has been selected or trial executed.
+- [x] B7b.1 Prepare the [existing-application protocol](APPLICATION-TRIAL.md), compatibility preflight and exact local tarball handoff. A public hotel application candidate has been cloned and schema-preflighted; the actual application trial remains unexecuted.
+- [x] B7b.1a Establish Angular 20.1.0 as the lowest public-API-compatible version, build on that floor, and add isolated packed-package AOT/Zone/zoneless CI coverage across majors 20–22. See the [independent review and validation](reviews/2026-11-02-angular-compatibility.md); broader peers remain pending a batched release.
 - [ ] B7b.2 Run that protocol in a selected existing Angular application; resolve and independently review correctness findings.
 - [x] B7c.1 Add repeatable schema/list/lifecycle measurements and record [desktop Node/Chromium evidence](PERFORMANCE.md), including a clearly labeled CPU-throttled profile. These results are synthetic, not physical lower-powered-device evidence.
 - [ ] B7c.2 Resolve **PERF-01**, the measured large-list refresh latency: profile client-side work, implement a focused reviewed fix with correctness regression coverage, and rerun the same dimensions. Do not introduce compiled plan reuse without supporting evidence.

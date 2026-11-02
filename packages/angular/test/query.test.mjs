@@ -1,6 +1,6 @@
-import '@angular/compiler';
+import { configureChangeDetection } from './test-environment.mjs';
 import assert from 'node:assert/strict';
-import { afterEach, test } from 'node:test';
+import { afterEach, beforeEach, test } from 'node:test';
 import {
   createEnvironmentInjector,
   EnvironmentInjector,
@@ -9,20 +9,19 @@ import {
   runInInjectionContext,
   signal,
   computed,
+  Component,
+  DestroyRef,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-  ServerTestingModule,
-  platformServerTesting,
-} from '@angular/platform-server/testing';
 import { AcquisitionClient, resourceAddress } from '@tandrove/core';
 import { createSchema, createGraphQLClient } from '@tandrove/graphql';
 import {
   injectStateQuery,
   provideTandroveClient,
-} from '../dist/fesm2022/tandrove-angular.mjs';
+  tandroveSignal,
+} from './adapter.mjs';
 
-TestBed.initTestEnvironment(ServerTestingModule, platformServerTesting());
+beforeEach(configureChangeDetection);
 afterEach(() => TestBed.resetTestingModule());
 const scope = (providers) =>
   createEnvironmentInjector(
@@ -88,6 +87,59 @@ function handles() {
   };
   return { open, opened };
 }
+
+test('component-owned signals and queries stop at destruction and reject a destroyed component ref', () => {
+  const { open, opened } = handles();
+  let subscriptions = 0;
+  let removals = 0;
+  let value = Object.freeze({ label: 'initial' });
+  let notify;
+  const reader = {
+    getSnapshot: () => value,
+    subscribe: (listener) => {
+      subscriptions++;
+      notify = listener;
+      return () => removals++;
+    },
+  };
+  class Host {
+    lifetime = inject(DestroyRef);
+    snapshot = tandroveSignal(reader);
+    parameter = signal('A');
+    query = injectStateQuery(this.parameter, open);
+  }
+  Component({
+    selector: 'lifecycle-host',
+    standalone: true,
+    template: '{{ snapshot().label }}:{{ query.state().status }}',
+  })(Host);
+  const fixture = TestBed.createComponent(Host);
+  fixture.detectChanges();
+  const host = fixture.componentInstance;
+  assert.equal(host.lifetime.destroyed, false);
+  assert.match(fixture.nativeElement.textContent, /initial:active/);
+  value = Object.freeze({ label: 'updated' });
+  notify();
+  host.parameter.set('B');
+  tick();
+  fixture.detectChanges();
+  assert.match(fixture.nativeElement.textContent, /updated:active/);
+  assert.equal(opened[0].disposals, 1);
+  assert.equal(host.query.state().stateAddress, 'B');
+  fixture.destroy();
+  assert.equal(host.lifetime.destroyed, true);
+  assert.equal(host.query.state().status, 'disposed');
+  assert.equal(opened[1].disposals, 1);
+  assert.equal(removals, 1);
+  value = Object.freeze({ label: 'late' });
+  notify();
+  assert.equal(host.snapshot().label, 'updated');
+  assert.throws(
+    () => tandroveSignal(reader, { destroyRef: host.lifetime }),
+    /destroyed Angular scope/,
+  );
+  assert.equal(subscriptions, 1);
+});
 
 test('provider lazily owns one client per providing injector, inherited by children', () => {
   const token = new InjectionToken('client');

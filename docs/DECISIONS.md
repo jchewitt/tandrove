@@ -1,5 +1,11 @@
 # Architecture decisions
 
+## D037 Angular compatibility follows public API requirements
+
+Use Angular 20.1.0 as the build and supported minimum because it publicly exposes `DestroyRef.destroyed`, required by component lifecycle guards. Do not require the demo's newer Angular patch solely because it is the original test baseline. Earlier 20.0 patches expose this member only as internal; no private-API fallback is introduced. Build partial APF output with compiler-cli/ng-packagr 20.1.0 and TypeScript 5.8.3, retaining ng-packagr's generated entrypoints. Angular-local extensionless imports use its Bundler module resolution and support that declaration bundler.
+
+Declare only tested major ranges (`^20.1.0 || ^21.0.0 || ^22.0.0`) and maintain isolated tarball tests at their lower bounds and current patches, including the external trial's 21.2.17. Exercise explicit Zone/zoneless modes, component and environment lifetimes, argument replacement, GraphQL invalidation and strict AOT declarations. Keep the billing demo on 21.2.25. Compatibility changes receive independent review and a batched Changeset; neither the existing-application gate nor publication is completed by this matrix. See [Angular compatibility](ANGULAR.md#angular-compatibility).
+
 ## D036 Typed snapshots preserve partial availability
 
 B7a carries the selected declaration result through GraphQL handles and Angular signals, while keeping the portable cache and snapshot runtime unchanged. Add a separate `SnapshotData<Result>` for recursively readonly optional data; keep `ResultOf` as the full declaration. Nested object branches admit structural null after errors, and scalar arrays retain their declared element/nullability types. Neither settled acquisition nor complete cached coverage narrows to a full schema result.

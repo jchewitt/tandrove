@@ -47,6 +47,35 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  angular-compatibility:
+    name: Angular compatibility (${{ matrix.angular }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        angular:
+          [
+            '20.1.0',
+            '20.3.34',
+            '21.0.0',
+            '21.2.17',
+            '21.2.25',
+            '22.0.0',
+            '22.2.4',
+          ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:angular ${{ matrix.angular }}
+
   browser:
     name: Angular browser scenarios
     runs-on: ubuntu-latest

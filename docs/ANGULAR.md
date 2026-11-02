@@ -8,7 +8,27 @@ The installation example targets `0.1.0-alpha.5`, tested with Angular 21.2.25 an
 npm install @tandrove/core@0.1.0-alpha.5 @tandrove/graphql@0.1.0-alpha.5 @tandrove/angular@0.1.0-alpha.5 graphql@^16.14.2
 ```
 
-The Angular package uses partial compilation and requires Angular core `^21.2.25`; older Angular majors are not supported. The core peer is exact during alpha. See [release status](RELEASING.md) before installing a version that has not yet been published.
+The current source supports Angular core `^20.1.0 || ^21.0.0 || ^22.0.0`, with an exact Tandrove core peer during alpha. This wider range is pending a batched release; the registry installation above retains its published `^21.2.25` peer. Use reviewed local tarballs for the compatibility/application trial. See [release status](RELEASING.md) before installing a version that has not yet been published.
+
+## Angular compatibility
+
+The minimum is **20.1.0**, where `DestroyRef.destroyed` became public. The adapter uses it to reject observation in already-destroyed component scopes and to clean up reentrant construction. Angular 20.0.0 lacks it; later 20.0 patches mark it internal. Supporting those versions would rely on an internal API, not the documented contract. See Angular's [20.1.0 changelog](https://github.com/angular/angular/blob/20.1.0/CHANGELOG.md) and [public API change](https://github.com/angular/angular/pull/61849).
+
+Build the package with Angular/compiler-cli 20.1.0, ng-packagr 20.1.0 and TypeScript 5.8.3 in partial compilation mode. The billing demo remains on Angular 21. The peer range is based on required public APIs and verified consumer behavior, rather than the demo's patch version. Do not extend it to an untested future major.
+
+CI installs real tarballs in isolated consumers, without peer overrides, at these boundaries:
+
+| Angular | TypeScript | Purpose                                  |
+| ------- | ---------- | ---------------------------------------- |
+| 20.1.0  | 5.8.3      | Minimum public-API and build version     |
+| 20.3.34 | 5.9.3      | Current Angular 20 patch                 |
+| 21.0.0  | 5.9.3      | Angular 21 lower bound                   |
+| 21.2.17 | 5.9.3      | External application trial version       |
+| 21.2.25 | 5.9.3      | Billing demo/current Angular 21 baseline |
+| 22.0.0  | 6.0.3      | Angular 22 lower bound                   |
+| 22.2.4  | 6.0.3      | Current Angular 22 patch                 |
+
+Each target runs native ESM observation, the Angular behavioral suite in both Zone-based and zoneless modes, component-owned destruction/rejection, provider and query replacement, GraphQL selective refresh, and strict AOT template/declaration checks. Run `pnpm check:angular VERSION` with a version from `scripts/angular-compatibility.mjs`. Angular 22 checks require a Node version supported by Angular 22 (CI uses Node 24's current patch); compatibility does not override Angular's own Node/TypeScript requirements. There is no SSR hydration claim.
 
 ## Shared client and owned queries
 
@@ -80,7 +100,7 @@ By default, it uses the current Angular injection context's `DestroyRef`. An exp
 
 Destroying that scope unsubscribes and leaves the signal at its last observed snapshot. It does **not** dispose the reader, query handle, or client. The caller retains ownership of those resources. A service created in the application injector naturally observes for that application's lifetime, not for each consuming component's lifetime. The readonly signal prevents assigning a different snapshot through the adapter; it does not deep-freeze arbitrary third-party reader values. Tandrove's own snapshots already enforce immutability.
 
-The package has Angular core and Tandrove core peers so the host supplies the shared runtime. It imports no GraphQL or forms implementation. Angular 21.2.25 is the tested baseline, and the peer range stays within Angular 21. TypeScript declarations preserve the source snapshot type; the runtime remains JavaScript.
+The package has Angular core and Tandrove core peers so the host supplies the shared runtime. It imports no GraphQL or forms implementation. The compatibility matrix above covers the supported majors and their lower bounds. TypeScript declarations preserve the source snapshot type; the runtime remains JavaScript. ng-packagr 20 generates the declaration entrypoint at `index.d.ts`; consumers continue importing from `@tandrove/angular`.
 
 ## Packaging and verification
 

@@ -32,6 +32,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "pack:check": "node scripts/check-package.mjs",
+    "check:angular": "pnpm --filter @tandrove/graphql... build && node scripts/check-angular-compatibility.mjs",
     "check": "pnpm format:check && pnpm build && pnpm generate:check && pnpm typecheck && pnpm test && pnpm pack:check",
     "changeset": "changeset",
     "version:packages": "changeset version",

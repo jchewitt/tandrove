@@ -11,12 +11,12 @@ import {
   type EffectRef,
 } from '@angular/core';
 import type { InputObject, QueryHandle, Unsubscribe } from '@tandrove/core';
-import { observeReader } from './observe-reader.js';
+import { observeReader } from './observe-reader';
 import type {
   StateQuery,
   StateQueryOptions,
   StateQueryState,
-} from './query-types.js';
+} from './query-types';
 
 type Parameters<P> =
   | { readonly kind: 'value'; readonly value: P }

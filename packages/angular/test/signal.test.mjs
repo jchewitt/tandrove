@@ -8,7 +8,7 @@ import {
   runInInjectionContext,
 } from '@angular/core';
 import { StateStore, resourceAddress } from '@tandrove/core';
-import { tandroveSignal } from '../dist/fesm2022/tandrove-angular.mjs';
+import { tandroveSignal } from './adapter.mjs';
 
 function lifetime() {
   const injector = createEnvironmentInjector([]);
