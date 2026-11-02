@@ -1,0 +1,488 @@
+diff --git a/frontend/src/app/screens/reservations/new/new-reservation.component.html b/frontend/src/app/screens/reservations/new/new-reservation.component.html
+index 40481d6..4723a92 100644
+--- a/frontend/src/app/screens/reservations/new/new-reservation.component.html
++++ b/frontend/src/app/screens/reservations/new/new-reservation.component.html
+@@ -31,6 +31,9 @@
+           </a>
+         </div>
+         <div class="card-body">
++          @if (saveNotice) {
++            <p role="status">{{ saveNotice }}</p>
++          }
+           <form (ngSubmit)="onSubmit()" #reservationForm="ngForm">
+             <div class="mb-3">
+               <label for="roomId" class="form-label">Room</label>
+@@ -39,6 +42,7 @@
+                 class="form-select"
+                 name="roomId"
+                 [(ngModel)]="formData.room_id"
++                (ngModelChange)="markDraftEdited()"
+                 required
+               >
+                 <option value="" disabled>-- Select a room --</option>
+@@ -109,6 +113,7 @@
+                 class="form-control"
+                 name="checkinDate"
+                 [(ngModel)]="formData.checkin_date"
++                (ngModelChange)="markDraftEdited()"
+                 required
+                 [min]="tomorrow"
+               />
+@@ -124,6 +129,7 @@
+                 class="form-control"
+                 name="checkoutDate"
+                 [(ngModel)]="formData.checkout_date"
++                (ngModelChange)="markDraftEdited()"
+                 required
+                 [min]="formData.checkin_date || tomorrow"
+               />
+@@ -135,6 +141,7 @@
+                 class="btn btn-primary"
+                 [disabled]="
+                   reservationForm.invalid ||
++                  pendingCommandId !== undefined ||
+                   roomsLoading() ||
+                   !!roomError() ||
+                   !hasSelectedRoom() ||
+diff --git a/frontend/src/app/screens/reservations/new/new-reservation.component.ts b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+index bf07626..e013ab0 100644
+--- a/frontend/src/app/screens/reservations/new/new-reservation.component.ts
++++ b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+@@ -1,10 +1,11 @@
+-import { Component, computed, inject } from '@angular/core';
++import { Component, DestroyRef, computed, inject } from '@angular/core';
++import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+ import { CommonModule } from '@angular/common';
+ import { FormsModule } from '@angular/forms';
+ import { RouterLink, Router } from '@angular/router';
+ import { Store } from '@ngrx/store';
+ import { Observable } from 'rxjs';
+-import { take } from 'rxjs/operators';
++import { filter, finalize, take } from 'rxjs/operators';
+ import { Actions, ofType } from '@ngrx/effects';
+ import { AppState } from '../../../store/app.state';
+ import { injectStateQuery } from '@tandrove/angular';
+@@ -24,6 +25,10 @@ import {
+   templateUrl: './new-reservation.component.html',
+ })
+ export class NewReservationComponent {
++  private readonly destroyRef = inject(DestroyRef);
++  private editGeneration = 0;
++  pendingCommandId: string | undefined;
++  saveNotice = '';
+   private readonly catalog = inject(RoomCatalog);
+   readonly roomQuery = injectStateQuery(
+     () => rooms.bind({}, this.catalog.binding()),
+@@ -115,8 +120,13 @@ export class NewReservationComponent {
+     return this.roomRecords().some((room) => room.id === this.formData.room_id);
+   }
+ 
++  markDraftEdited(): void {
++    this.editGeneration++;
++  }
++
+   onSubmit(): void {
+     if (
++      this.pendingCommandId !== undefined ||
+       this.roomsLoading() ||
+       this.roomError() ||
+       !this.hasSelectedRoom() ||
+@@ -127,19 +137,39 @@ export class NewReservationComponent {
+       return;
+     }
+ 
+-    this.store.dispatch(
+-      ReservationActions.createReservation({
+-        room_id: this.formData.room_id,
+-        checkin_date: this.formData.checkin_date,
+-        checkout_date: this.formData.checkout_date,
+-      }),
+-    );
+-
++    const commandId = crypto.randomUUID();
++    const submitted = Object.freeze({ ...this.formData });
++    const submittedGeneration = this.editGeneration;
++    this.pendingCommandId = commandId;
++    this.saveNotice = '';
++    // Register first: synchronous effects/test transports must not outrun ownership.
+     this.actions$
+-      .pipe(ofType(ReservationActions.createReservationSuccess), take(1))
+-      .subscribe(() => {
+-        this.router.navigate(['/home']);
++      .pipe(
++        ofType(
++          ReservationActions.createReservationSuccess,
++          ReservationActions.createReservationFailure,
++        ),
++        filter((action) => action.commandId === commandId),
++        take(1),
++        takeUntilDestroyed(this.destroyRef),
++        finalize(() => {
++          if (this.pendingCommandId === commandId)
++            this.pendingCommandId = undefined;
++        }),
++      )
++      .subscribe((action) => {
++        if (action.type === ReservationActions.createReservationFailure.type)
++          return;
++        if (this.editGeneration !== submittedGeneration) {
++          this.saveNotice =
++            'Reservation saved. Later edits remain an unsent booking draft.';
++          return;
++        }
++        void this.router.navigate(['/home']);
+       });
++    this.store.dispatch(
++      ReservationActions.createReservation({ commandId, ...submitted }),
++    );
+   }
+ 
+   dismissAlert(): void {
+diff --git a/frontend/src/app/store/reservation/reservation.actions.ts b/frontend/src/app/store/reservation/reservation.actions.ts
+index b99350d..ee6f9db 100644
+--- a/frontend/src/app/store/reservation/reservation.actions.ts
++++ b/frontend/src/app/store/reservation/reservation.actions.ts
+@@ -30,17 +30,22 @@ export const loadRoomsFailure = createAction(
+ // Create Reservation
+ export const createReservation = createAction(
+   '[Reservation] Create Reservation',
+-  props<{ room_id: string; checkin_date: string; checkout_date: string }>(),
++  props<{
++    commandId: string;
++    room_id: string;
++    checkin_date: string;
++    checkout_date: string;
++  }>(),
+ );
+ 
+ export const createReservationSuccess = createAction(
+   '[Reservation] Create Reservation Success',
+-  props<{ reservations: Reservation[] }>(),
++  props<{ commandId: string; reservations: Reservation[] }>(),
+ );
+ 
+ export const createReservationFailure = createAction(
+   '[Reservation] Create Reservation Failure',
+-  props<{ error: string }>(),
++  props<{ commandId: string; error: string }>(),
+ );
+ 
+ // Delete Reservation
+diff --git a/frontend/src/app/store/reservation/reservation.effects.spec.ts b/frontend/src/app/store/reservation/reservation.effects.spec.ts
+new file mode 100644
+index 0000000..cf851fe
+--- /dev/null
++++ b/frontend/src/app/store/reservation/reservation.effects.spec.ts
+@@ -0,0 +1,85 @@
++import { TestBed } from '@angular/core/testing';
++import { provideHttpClient } from '@angular/common/http';
++import {
++  HttpTestingController,
++  provideHttpClientTesting,
++} from '@angular/common/http/testing';
++import { Actions } from '@ngrx/effects';
++import { provideStore, Action } from '@ngrx/store';
++import { Subject } from 'rxjs';
++import { ReservationEffects } from './reservation.effects';
++import { reservationReducer } from './reservation.reducer';
++import * as actions from './reservation.actions';
++
++describe('Reservation create correlation', () => {
++  let input: Subject<Action>;
++  let http: HttpTestingController;
++  let effects: ReservationEffects;
++  beforeEach(() => {
++    input = new Subject();
++    TestBed.configureTestingModule({
++      providers: [
++        provideHttpClient(),
++        provideHttpClientTesting(),
++        provideStore({ reservation: reservationReducer }),
++        ReservationEffects,
++        { provide: Actions, useValue: new Actions(input) },
++      ],
++    });
++    http = TestBed.inject(HttpTestingController);
++    effects = TestBed.inject(ReservationEffects);
++  });
++  afterEach(() => {
++    http.verify();
++    TestBed.resetTestingModule();
++  });
++
++  for (const scenario of ['success', 'business failure', 'HTTP failure']) {
++    it(`echoes the local command ID on ${scenario} without sending it as GraphQL input`, () => {
++      const received: Action[] = [];
++      const subscription = effects.createReservation$.subscribe((result) =>
++        received.push(result),
++      );
++      input.next(
++        actions.createReservation({
++          commandId: 'request-one',
++          room_id: 'room_1',
++          checkin_date: '2027-08-01',
++          checkout_date: '2027-08-03',
++        }),
++      );
++      const request = http.expectOne('/graphql');
++      expect(request.request.body.variables.input).toEqual({
++        room_id: 'room_1',
++        checkin_date: '2027-08-01',
++        checkout_date: '2027-08-03',
++      });
++      if (scenario === 'HTTP failure')
++        request.flush('Unavailable', {
++          status: 503,
++          statusText: 'Unavailable',
++        });
++      else
++        request.flush({
++          data: {
++            createReservation: {
++              success: scenario === 'success',
++              errors: scenario === 'success' ? null : ['Overlap'],
++              reservations: [],
++            },
++          },
++        });
++      expect(received.length).toBe(1);
++      expect((received[0] as { commandId?: string }).commandId).toBe(
++        'request-one',
++      );
++      expect(received[0].type).toBe(
++        scenario === 'success'
++          ? actions.createReservationSuccess.type
++          : actions.createReservationFailure.type,
++      );
++      http.expectNone('/graphql');
++      subscription.unsubscribe();
++    });
++  }
++});
+diff --git a/frontend/src/app/store/reservation/reservation.effects.ts b/frontend/src/app/store/reservation/reservation.effects.ts
+index cabf9cf..9f50f1c 100644
+--- a/frontend/src/app/store/reservation/reservation.effects.ts
++++ b/frontend/src/app/store/reservation/reservation.effects.ts
+@@ -126,16 +126,19 @@ export class ReservationEffects {
+               const result = response.data.createReservation;
+               if (result.success) {
+                 return ReservationActions.createReservationSuccess({
++                  commandId: action.commandId,
+                   reservations: result.reservations ?? [],
+                 });
+               }
+               return ReservationActions.createReservationFailure({
++                commandId: action.commandId,
+                 error: result.errors?.[0] ?? 'Failed to create reservation',
+               });
+             }),
+             catchError((error) =>
+               of(
+                 ReservationActions.createReservationFailure({
++                  commandId: action.commandId,
+                   error: error.message ?? 'Network error',
+                 }),
+               ),
+diff --git a/frontend/src/app/store/reservation/reservation.reducer.spec.ts b/frontend/src/app/store/reservation/reservation.reducer.spec.ts
+index 8ff33c6..52e89ee 100644
+--- a/frontend/src/app/store/reservation/reservation.reducer.spec.ts
++++ b/frontend/src/app/store/reservation/reservation.reducer.spec.ts
+@@ -88,6 +88,7 @@ describe('ReservationReducer', () => {
+       const state = reservationReducer(
+         initialState,
+         ReservationActions.createReservation({
++          commandId: 'test-create',
+           room_id: 'room_1',
+           checkin_date: '2026-06-01',
+           checkout_date: '2026-06-03',
+@@ -100,6 +101,7 @@ describe('ReservationReducer', () => {
+       const state = reservationReducer(
+         initialState,
+         ReservationActions.createReservationSuccess({
++          commandId: 'test-create',
+           reservations: [mockReservation],
+         }),
+       );
+@@ -111,7 +113,10 @@ describe('ReservationReducer', () => {
+     it('should set danger alert on failure', () => {
+       const state = reservationReducer(
+         initialState,
+-        ReservationActions.createReservationFailure({ error: 'room taken' }),
++        ReservationActions.createReservationFailure({
++          commandId: 'test-create',
++          error: 'room taken',
++        }),
+       );
+       expect(state.alert?.alertType).toBe('danger');
+       expect(state.alert?.message).toBe('room taken');
+diff --git a/frontend/src/app/tandrove/booking-save.spec.ts b/frontend/src/app/tandrove/booking-save.spec.ts
+new file mode 100644
+index 0000000..d03446c
+--- /dev/null
++++ b/frontend/src/app/tandrove/booking-save.spec.ts
+@@ -0,0 +1,165 @@
++import { ComponentFixture, TestBed } from '@angular/core/testing';
++import { provideRouter, Router } from '@angular/router';
++import { provideStore, Store, Action } from '@ngrx/store';
++import { Actions } from '@ngrx/effects';
++import { Subject } from 'rxjs';
++import { AuthService } from '../core/services/auth.service';
++import { reservationReducer } from '../store/reservation/reservation.reducer';
++import * as actions from '../store/reservation/reservation.actions';
++import { NewReservationComponent } from '../screens/reservations/new/new-reservation.component';
++
++describe('Booking save ownership', () => {
++  let outcomes: Subject<Action>;
++  let fixture: ComponentFixture<NewReservationComponent>;
++  let component: NewReservationComponent;
++  let dispatch: jasmine.Spy;
++  let navigate: jasmine.Spy;
++  beforeEach(async () => {
++    outcomes = new Subject<Action>();
++    TestBed.configureTestingModule({
++      imports: [NewReservationComponent],
++      providers: [
++        provideRouter([]),
++        provideStore({ reservation: reservationReducer }),
++        { provide: Actions, useValue: new Actions(outcomes) },
++        {
++          provide: AuthService,
++          useValue: { sessionToken: () => 'trial-token' },
++        },
++      ],
++    });
++    spyOn(window, 'fetch').and.callFake(
++      async () =>
++        new Response(
++          JSON.stringify({
++            data: {
++              getAllRooms: {
++                __typename: 'RoomResult',
++                success: true,
++                errors: null,
++                rooms: [
++                  {
++                    __typename: 'Room',
++                    id: 'room_1',
++                    num_beds: 2,
++                    allow_smoking: false,
++                    daily_rate: 140,
++                    cleaning_fee: 20,
++                  },
++                ],
++              },
++            },
++          }),
++        ),
++    );
++    fixture = TestBed.createComponent(NewReservationComponent);
++    component = fixture.componentInstance;
++    fixture.detectChanges();
++    await component.roomQuery.ensure();
++    component.formData = {
++      room_id: 'room_1',
++      checkin_date: '2027-08-01',
++      checkout_date: '2027-08-03',
++    };
++    fixture.detectChanges();
++    await Promise.resolve();
++    dispatch = spyOn(TestBed.inject(Store), 'dispatch');
++    navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
++  });
++  afterEach(() => {
++    fixture.destroy();
++    TestBed.resetTestingModule();
++  });
++  const success = (commandId: string) =>
++    actions.createReservationSuccess({ commandId, reservations: [] });
++
++  it('observes a matching success dispatched synchronously and settles once', () => {
++    dispatch.and.callFake((action) => outcomes.next(success(action.commandId)));
++    component.onSubmit();
++    expect(navigate).toHaveBeenCalledOnceWith(['/home']);
++    expect(component.pendingCommandId).toBeUndefined();
++    outcomes.next(success(dispatch.calls.mostRecent().args[0].commandId));
++    expect(navigate).toHaveBeenCalledTimes(1);
++  });
++
++  it('ignores unrelated results and blocks a second submit while pending', () => {
++    component.onSubmit();
++    const id = component.pendingCommandId!;
++    outcomes.next(success('another-editor'));
++    outcomes.next(
++      actions.createReservationFailure({
++        commandId: 'another-editor',
++        error: 'Other failure',
++      }),
++    );
++    component.onSubmit();
++    expect(dispatch).toHaveBeenCalledTimes(1);
++    expect(component.pendingCommandId).toBe(id);
++    expect(navigate).not.toHaveBeenCalled();
++    outcomes.next(success(id));
++    expect(navigate).toHaveBeenCalledTimes(1);
++  });
++
++  it('ends a failed attempt, preserves the draft and correlates a new-ID retry', () => {
++    component.onSubmit();
++    const first = component.pendingCommandId!;
++    const draft = { ...component.formData };
++    outcomes.next(
++      actions.createReservationFailure({ commandId: first, error: 'Overlap' }),
++    );
++    expect(component.pendingCommandId).toBeUndefined();
++    expect(component.formData).toEqual(draft);
++    outcomes.next(success(first));
++    expect(navigate).not.toHaveBeenCalled();
++    component.onSubmit();
++    const second = component.pendingCommandId!;
++    expect(second).not.toBe(first);
++    outcomes.next(success(first));
++    expect(component.pendingCommandId).toBe(second);
++    outcomes.next(success(second));
++    expect(navigate).toHaveBeenCalledTimes(1);
++  });
++
++  it('releases the listener when its component is destroyed', () => {
++    component.onSubmit();
++    const id = component.pendingCommandId!;
++    fixture.destroy();
++    outcomes.next(success(id));
++    expect(navigate).not.toHaveBeenCalled();
++    expect(component.pendingCommandId).toBeUndefined();
++  });
++
++  it('keeps submitted values separate and preserves later user edits on success', async () => {
++    component.onSubmit();
++    const submitted = dispatch.calls.mostRecent().args[0];
++    const input: HTMLInputElement =
++      fixture.nativeElement.querySelector('#checkoutDate');
++    input.value = '2027-08-04';
++    input.dispatchEvent(new Event('input'));
++    fixture.detectChanges();
++    await Promise.resolve();
++    expect(submitted.checkout_date).toBe('2027-08-03');
++    expect(component.formData.checkout_date).toBe('2027-08-04');
++    outcomes.next(success(submitted.commandId));
++    expect(component.formData.checkout_date).toBe('2027-08-04');
++    expect(navigate).not.toHaveBeenCalled();
++    expect(component.saveNotice).toContain('unsent booking draft');
++  });
++
++  it('preserves edit intent even when the user changes a value and changes it back', async () => {
++    component.onSubmit();
++    const id = component.pendingCommandId!;
++    const input: HTMLInputElement =
++      fixture.nativeElement.querySelector('#checkoutDate');
++    for (const value of ['2027-08-04', '2027-08-03']) {
++      input.value = value;
++      input.dispatchEvent(new Event('input'));
++      fixture.detectChanges();
++      await Promise.resolve();
++    }
++    outcomes.next(success(id));
++    expect(component.formData.checkout_date).toBe('2027-08-03');
++    expect(navigate).not.toHaveBeenCalled();
++    expect(component.saveNotice).toContain('unsent booking draft');
++  });
++});
