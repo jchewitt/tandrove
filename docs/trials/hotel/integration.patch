@@ -1,0 +1,930 @@
+diff --git a/frontend/.eslintrc.json b/frontend/.eslintrc.json
+index cb0fa40..fea52d7 100644
+--- a/frontend/.eslintrc.json
++++ b/frontend/.eslintrc.json
+@@ -20,10 +20,17 @@
+           { "type": "element", "prefix": "app", "style": "kebab-case" }
+         ],
+         "@typescript-eslint/no-explicit-any": "warn",
+-        "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "_" }],
++        "@typescript-eslint/no-unused-vars": [
++          "warn",
++          { "argsIgnorePattern": "_" }
++        ],
+         "no-console": "warn"
+       }
+     },
++    {
++      "files": ["src/app/tandrove/generated/*.ts"],
++      "rules": { "@typescript-eslint/no-empty-object-type": "off" }
++    },
+     {
+       "files": ["*.html"],
+       "extends": [
+diff --git a/frontend/scripts/generate-hotel.mjs b/frontend/scripts/generate-hotel.mjs
+new file mode 100644
+index 0000000..26cc98f
+--- /dev/null
++++ b/frontend/scripts/generate-hotel.mjs
+@@ -0,0 +1,28 @@
++import { readFile, writeFile, mkdir } from 'node:fs/promises';
++import { generateSchemaModule } from '@tandrove/graphql/codegen';
++import { format } from 'prettier';
++
++const schema = await readFile(
++  new URL(
++    '../../backend/src/main/resources/graphql/schema.graphqls',
++    import.meta.url,
++  ),
++  'utf8',
++);
++const destination = new URL(
++  '../src/app/tandrove/generated/hotel.ts',
++  import.meta.url,
++);
++const output = await format(
++  generateSchemaModule(schema, {
++    identities: { Room: ['id'], Reservation: ['id'] },
++  }),
++  { parser: 'typescript', singleQuote: true },
++);
++if (process.argv.includes('--check')) {
++  if ((await readFile(destination, 'utf8')) !== output)
++    throw new Error('Generated hotel schema is stale.');
++} else {
++  await mkdir(new URL('.', destination), { recursive: true });
++  await writeFile(destination, output);
++}
+diff --git a/frontend/src/app/app.component.spec.ts b/frontend/src/app/app.component.spec.ts
+index 2ce024f..33e54d9 100644
+--- a/frontend/src/app/app.component.spec.ts
++++ b/frontend/src/app/app.component.spec.ts
+@@ -7,6 +7,7 @@ import { provideHttpClient } from '@angular/common/http';
+ import { provideHttpClientTesting } from '@angular/common/http/testing';
+ 
+ const mockAuthService = {
++  sessionToken: () => 'test-token',
+   login: () =>
+     of({ access_token: 'test-token', token_type: 'bearer', expires_in: 3600 }),
+   getToken: () => 'test-token',
+diff --git a/frontend/src/app/app.component.ts b/frontend/src/app/app.component.ts
+index 0fa659c..36a7269 100644
+--- a/frontend/src/app/app.component.ts
++++ b/frontend/src/app/app.component.ts
+@@ -12,16 +12,22 @@ import { AuthService } from './core/services/auth.service';
+         <a class="navbar-brand" href="/">Acme Hotel</a>
+       </div>
+     </nav>
+-    <router-outlet></router-outlet>
++    @if (authService.sessionToken()) {
++      <router-outlet></router-outlet>
++    } @else {
++      <p role="status">{{ authError || 'Signing in…' }}</p>
++    }
+   `,
+ })
+ export class AppComponent implements OnInit {
+-  constructor(private authService: AuthService) {}
++  authError = '';
++  constructor(readonly authService: AuthService) {}
+ 
+   ngOnInit(): void {
+     this.authService.login().subscribe({
+-      // eslint-disable-next-line no-console
+-      error: (err) => console.error('Authentication failed:', err),
++      error: () => {
++        this.authError = 'Authentication failed. Reload to retry.';
++      },
+     });
+   }
+ }
+diff --git a/frontend/src/app/core/services/auth.service.ts b/frontend/src/app/core/services/auth.service.ts
+index f3a4308..3ab6dee 100644
+--- a/frontend/src/app/core/services/auth.service.ts
++++ b/frontend/src/app/core/services/auth.service.ts
+@@ -1,4 +1,4 @@
+-import { Injectable } from '@angular/core';
++import { Injectable, signal } from '@angular/core';
+ import { HttpClient, HttpParams } from '@angular/common/http';
+ import { Observable, tap } from 'rxjs';
+ 
+@@ -12,12 +12,15 @@ export interface TokenResponse {
+   providedIn: 'root',
+ })
+ export class AuthService {
++  private readonly currentToken = signal<string | null>(null);
++  readonly sessionToken = this.currentToken.asReadonly();
+   private readonly TOKEN_KEY = 'access_token';
+   private readonly TOKEN_URL = '/development/token';
+ 
+   constructor(private http: HttpClient) {}
+ 
+   login(): Observable<TokenResponse> {
++    this.clearToken();
+     const body = new HttpParams()
+       .set('grant_type', 'password')
+       .set('username', 'example-user')
+@@ -30,6 +33,7 @@ export class AuthService {
+       .pipe(
+         tap((response) => {
+           localStorage.setItem(this.TOKEN_KEY, response.access_token);
++          this.currentToken.set(response.access_token);
+         }),
+       );
+   }
+@@ -40,5 +44,6 @@ export class AuthService {
+ 
+   clearToken(): void {
+     localStorage.removeItem(this.TOKEN_KEY);
++    this.currentToken.set(null);
+   }
+ }
+diff --git a/frontend/src/app/screens/reservations/new/new-reservation.component.html b/frontend/src/app/screens/reservations/new/new-reservation.component.html
+index d7b9d98..40481d6 100644
+--- a/frontend/src/app/screens/reservations/new/new-reservation.component.html
++++ b/frontend/src/app/screens/reservations/new/new-reservation.component.html
+@@ -42,18 +42,63 @@
+                 required
+               >
+                 <option value="" disabled>-- Select a room --</option>
+-                @for (room of rooms$ | async; track room) {
++                @for (room of roomRecords(); track room.id) {
+                   <option [value]="room.id">
+-                    {{ room.id }} — {{ room.num_beds }} beds —
+-                    {{ room.allow_smoking ? 'Smoking' : 'Non-smoking' }} — ${{
+-                      room.daily_rate
+-                    }}/night + ${{ room.cleaning_fee }} cleaning
++                    {{ room.id }} — {{ room.num_beds ?? 'unavailable' }} beds —
++                    {{
++                      room.allow_smoking === undefined
++                        ? 'Smoking policy unavailable'
++                        : room.allow_smoking
++                          ? 'Smoking'
++                          : 'Non-smoking'
++                    }}
++                    — ${{ room.daily_rate ?? 'unavailable' }}/night + ${{
++                      room.cleaning_fee ?? 'unavailable'
++                    }}
++                    cleaning
+                   </option>
+                 }
+               </select>
+-              @if ((rooms$ | async)?.length === 0) {
++              @if (roomsLoading()) {
+                 <div class="form-text text-muted">Loading rooms...</div>
+               }
++              @if (roomError()) {
++                <p class="text-danger" role="alert">{{ roomError() }}</p>
++              }
++              @if (membershipChanged()) {
++                <p role="status">
++                  The room list may have changed. Reload the room catalog to
++                  update membership.
++                </p>
++              }
++              <div class="d-flex gap-2 my-2">
++                <button
++                  type="button"
++                  class="btn btn-outline-secondary btn-sm"
++                  (click)="refreshRates()"
++                  [disabled]="roomsLoading()"
++                >
++                  Refresh room rates
++                </button>
++                <button
++                  type="button"
++                  class="btn btn-outline-secondary btn-sm"
++                  (click)="reloadRooms()"
++                  [disabled]="roomsLoading()"
++                >
++                  Reload room catalog
++                </button>
++                <button
++                  type="button"
++                  class="btn btn-outline-secondary btn-sm"
++                  (click)="showRate = !showRate"
++                >
++                  {{ showRate ? 'Hide rate preview' : 'Show rate preview' }}
++                </button>
++              </div>
++              @if (showRate) {
++                <app-room-rate [roomId]="formData.room_id" />
++              }
+             </div>
+ 
+             <div class="mb-3">
+@@ -88,7 +133,13 @@
+               <button
+                 type="submit"
+                 class="btn btn-primary"
+-                [disabled]="reservationForm.invalid || (loading$ | async)"
++                [disabled]="
++                  reservationForm.invalid ||
++                  roomsLoading() ||
++                  !!roomError() ||
++                  !hasSelectedRoom() ||
++                  (loading$ | async)
++                "
+               >
+                 @if (loading$ | async) {
+                   <span
+diff --git a/frontend/src/app/screens/reservations/new/new-reservation.component.ts b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+index 3fbe7b3..bf07626 100644
+--- a/frontend/src/app/screens/reservations/new/new-reservation.component.ts
++++ b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+@@ -1,4 +1,4 @@
+-import { Component, OnInit } from '@angular/core';
++import { Component, computed, inject } from '@angular/core';
+ import { CommonModule } from '@angular/common';
+ import { FormsModule } from '@angular/forms';
+ import { RouterLink, Router } from '@angular/router';
+@@ -7,10 +7,11 @@ import { Observable } from 'rxjs';
+ import { take } from 'rxjs/operators';
+ import { Actions, ofType } from '@ngrx/effects';
+ import { AppState } from '../../../store/app.state';
+-import { Room } from '../../../graphql/queries';
++import { injectStateQuery } from '@tandrove/angular';
++import { RoomCatalog, rooms } from '../../../tandrove/room-catalog';
++import { RoomRateComponent } from '../../../tandrove/room-rate.component';
+ import * as ReservationActions from '../../../store/reservation/reservation.actions';
+ import {
+-  selectRooms,
+   selectLoading,
+   selectAlert,
+ } from '../../../store/reservation/reservation.selectors';
+@@ -18,11 +19,58 @@ import {
+ @Component({
+   selector: 'app-new-reservation',
+   standalone: true,
+-  imports: [CommonModule, FormsModule, RouterLink],
++  imports: [CommonModule, FormsModule, RouterLink, RoomRateComponent],
++  providers: [RoomCatalog],
+   templateUrl: './new-reservation.component.html',
+ })
+-export class NewReservationComponent implements OnInit {
+-  rooms$: Observable<Room[]>;
++export class NewReservationComponent {
++  private readonly catalog = inject(RoomCatalog);
++  readonly roomQuery = injectStateQuery(
++    () => rooms.bind({}, this.catalog.binding()),
++    (definition) => this.catalog.client.watch(definition),
++  );
++  readonly roomRecords = computed(() => {
++    const state = this.roomQuery.state();
++    return state.status === 'active'
++      ? (state.snapshot.records?.map((record) => record.data) ?? [])
++      : [];
++  });
++  readonly roomError = computed(() => {
++    const state = this.roomQuery.state();
++    const error =
++      state.status === 'error'
++        ? state.error
++        : state.status === 'active'
++          ? state.snapshot.error ||
++            state.snapshot.resourceError ||
++            (state.snapshot.records === null
++              ? 'The room catalog is unavailable.'
++              : undefined) ||
++            state.snapshot.records
++              ?.flatMap((record) => record.fields)
++              .find((field) => field.error)?.error ||
++            (!state.snapshot.fetching && !state.snapshot.complete
++              ? 'Some room details are unavailable. Reload the room catalog.'
++              : undefined)
++          : undefined;
++    return error instanceof Error ? error.message : error ? String(error) : '';
++  });
++  readonly membershipChanged = computed(() => {
++    const state = this.roomQuery.state();
++    return (
++      state.status === 'active' &&
++      state.snapshot.records !== undefined &&
++      state.snapshot.membershipStale
++    );
++  });
++  readonly roomsLoading = computed(() => {
++    const state = this.roomQuery.state();
++    return (
++      state.status === 'pending' ||
++      (state.status === 'active' && state.snapshot.fetching)
++    );
++  });
++  showRate = true;
+   loading$: Observable<boolean>;
+   alert$: Observable<{ message: string; alertType: string } | null>;
+ 
+@@ -39,7 +87,6 @@ export class NewReservationComponent implements OnInit {
+     private actions$: Actions,
+     private router: Router,
+   ) {
+-    this.rooms$ = this.store.select(selectRooms);
+     this.loading$ = this.store.select(selectLoading);
+     this.alert$ = this.store.select(selectAlert);
+ 
+@@ -48,12 +95,31 @@ export class NewReservationComponent implements OnInit {
+     this.tomorrow = today.toISOString().split('T')[0];
+   }
+ 
+-  ngOnInit(): void {
+-    this.store.dispatch(ReservationActions.loadRooms());
++  async refreshRates(): Promise<void> {
++    try {
++      await this.roomQuery.invalidate('daily_rate');
++    } catch {
++      /* Error is displayed from the owned query. */
++    }
++  }
++
++  async reloadRooms(): Promise<void> {
++    try {
++      await this.roomQuery.refreshList();
++    } catch {
++      /* Keep cached data visible with the error. */
++    }
++  }
++
++  hasSelectedRoom(): boolean {
++    return this.roomRecords().some((room) => room.id === this.formData.room_id);
+   }
+ 
+   onSubmit(): void {
+     if (
++      this.roomsLoading() ||
++      this.roomError() ||
++      !this.hasSelectedRoom() ||
+       !this.formData.room_id ||
+       !this.formData.checkin_date ||
+       !this.formData.checkout_date
+diff --git a/frontend/src/app/tandrove/booking-availability.spec.ts b/frontend/src/app/tandrove/booking-availability.spec.ts
+new file mode 100644
+index 0000000..d944d8a
+--- /dev/null
++++ b/frontend/src/app/tandrove/booking-availability.spec.ts
+@@ -0,0 +1,141 @@
++import { TestBed } from '@angular/core/testing';
++import { provideRouter } from '@angular/router';
++import { provideStore, Store } from '@ngrx/store';
++import { Actions } from '@ngrx/effects';
++import { Subject } from 'rxjs';
++import { AuthService } from '../core/services/auth.service';
++import { reservationReducer } from '../store/reservation/reservation.reducer';
++import { NewReservationComponent } from '../screens/reservations/new/new-reservation.component';
++
++describe('Booking room availability', () => {
++  beforeEach(() => {
++    TestBed.configureTestingModule({
++      imports: [NewReservationComponent],
++      providers: [
++        provideRouter([]),
++        provideStore({ reservation: reservationReducer }),
++        { provide: Actions, useValue: new Actions(new Subject()) },
++        {
++          provide: AuthService,
++          useValue: { sessionToken: () => 'trial-token' },
++        },
++      ],
++    });
++  });
++  afterEach(() => TestBed.resetTestingModule());
++
++  it('labels missing data as unavailable and prevents a booking command', async () => {
++    spyOn(window, 'fetch').and.callFake(
++      async () =>
++        new Response(
++          JSON.stringify({
++            data: {
++              getAllRooms: {
++                __typename: 'RoomResult',
++                success: true,
++                errors: null,
++                rooms: [
++                  {
++                    __typename: 'Room',
++                    id: 'room_1',
++                    num_beds: 2,
++                    cleaning_fee: 20,
++                  },
++                ],
++              },
++            },
++          }),
++        ),
++    );
++    const fixture = TestBed.createComponent(NewReservationComponent);
++    const component = fixture.componentInstance;
++    component.formData = {
++      room_id: 'room_1',
++      checkin_date: '2027-06-01',
++      checkout_date: '2027-06-03',
++    };
++    fixture.detectChanges();
++    await component.roomQuery.ensure().catch(() => undefined);
++    fixture.detectChanges();
++    const text = fixture.nativeElement.textContent as string;
++    expect(text).toContain('Smoking policy unavailable');
++    expect(text).toContain('Selected room rate is unavailable');
++    expect(text).not.toContain('Non-smoking');
++    expect(
++      fixture.nativeElement.querySelector('button[type="submit"]').disabled,
++    ).toBeTrue();
++    const dispatch = spyOn(TestBed.inject(Store), 'dispatch');
++    component.onSubmit();
++    expect(dispatch).not.toHaveBeenCalled();
++    fixture.destroy();
++  });
++
++  it('shows membership drift until an explicit full catalog reload', async () => {
++    const room = {
++      __typename: 'Room',
++      id: 'room_1',
++      num_beds: 2,
++      allow_smoking: false,
++      daily_rate: 140,
++      cleaning_fee: 20,
++    };
++    let records: (typeof room)[] | null = [room];
++    spyOn(window, 'fetch').and.callFake(
++      async () =>
++        new Response(
++          JSON.stringify({
++            data: {
++              getAllRooms: {
++                __typename: 'RoomResult',
++                success: true,
++                errors: null,
++                rooms: records,
++              },
++            },
++          }),
++        ),
++    );
++    const fixture = TestBed.createComponent(NewReservationComponent);
++    fixture.detectChanges();
++    await fixture.componentInstance.roomQuery.ensure();
++    records = [room, { ...room, id: 'room_2' }];
++    await fixture.componentInstance.refreshRates();
++    fixture.detectChanges();
++    expect(fixture.nativeElement.textContent).toContain(
++      'The room list may have changed',
++    );
++    expect(
++      fixture.nativeElement.querySelectorAll('#roomId option').length,
++    ).toBe(2);
++    await fixture.componentInstance.reloadRooms();
++    fixture.detectChanges();
++    expect(fixture.nativeElement.textContent).not.toContain(
++      'The room list may have changed',
++    );
++    expect(
++      fixture.nativeElement.querySelectorAll('#roomId option').length,
++    ).toBe(3);
++    fixture.componentInstance.formData = {
++      room_id: 'room_1',
++      checkin_date: '2027-07-01',
++      checkout_date: '2027-07-03',
++    };
++    records = [];
++    await fixture.componentInstance.reloadRooms();
++    fixture.detectChanges();
++    expect(fixture.componentInstance.formData.room_id).toBe('room_1');
++    expect(
++      fixture.nativeElement.querySelector('button[type="submit"]').disabled,
++    ).toBeTrue();
++    const dispatch = spyOn(TestBed.inject(Store), 'dispatch');
++    fixture.componentInstance.onSubmit();
++    expect(dispatch).not.toHaveBeenCalled();
++    records = null;
++    await fixture.componentInstance.reloadRooms();
++    fixture.detectChanges();
++    expect(fixture.nativeElement.textContent).toContain(
++      'The room catalog is unavailable.',
++    );
++    fixture.destroy();
++  });
++});
+diff --git a/frontend/src/app/tandrove/generated/hotel.ts b/frontend/src/app/tandrove/generated/hotel.ts
+new file mode 100644
+index 0000000..d9a528a
+--- /dev/null
++++ b/frontend/src/app/tandrove/generated/hotel.ts
+@@ -0,0 +1,64 @@
++// Generated from the GraphQL schema. Do not edit.
++import {
++  createSchema,
++  type FieldType,
++  type ObjectRef,
++} from '@tandrove/graphql';
++export type Inputs = {
++  ReservationInput: {
++    readonly room_id: string;
++    readonly checkin_date: string;
++    readonly checkout_date: string;
++  };
++};
++export type GeneratedTypes = {
++  Mutation: {
++    readonly createReservation: FieldType<
++      ObjectRef<'ReservationResult'>,
++      { readonly input: Inputs['ReservationInput'] }
++    >;
++    readonly deleteReservation: FieldType<
++      ObjectRef<'ReservationResult'>,
++      { readonly reservationId: number }
++    >;
++  };
++  Query: {
++    readonly getAllReservations: FieldType<ObjectRef<'ReservationResult'>, {}>;
++    readonly getAllRooms: FieldType<ObjectRef<'RoomResult'>, {}>;
++    readonly getReservation: FieldType<
++      ObjectRef<'ReservationResult'>,
++      { readonly id: string }
++    >;
++  };
++  Reservation: {
++    readonly id: FieldType<string, {}>;
++    readonly room_id: FieldType<string, {}>;
++    readonly checkin_date: FieldType<string, {}>;
++    readonly checkout_date: FieldType<string, {}>;
++    readonly total_charge: FieldType<number, {}>;
++  };
++  ReservationResult: {
++    readonly success: FieldType<boolean, {}>;
++    readonly errors: FieldType<readonly (string | null)[] | null, {}>;
++    readonly reservations: FieldType<
++      readonly (ObjectRef<'Reservation'> | null)[] | null,
++      {}
++    >;
++  };
++  Room: {
++    readonly id: FieldType<string, {}>;
++    readonly num_beds: FieldType<number, {}>;
++    readonly allow_smoking: FieldType<boolean, {}>;
++    readonly daily_rate: FieldType<number, {}>;
++    readonly cleaning_fee: FieldType<number, {}>;
++  };
++  RoomResult: {
++    readonly success: FieldType<boolean, {}>;
++    readonly errors: FieldType<readonly (string | null)[] | null, {}>;
++    readonly rooms: FieldType<readonly (ObjectRef<'Room'> | null)[] | null, {}>;
++  };
++};
++export const schema = createSchema<GeneratedTypes>(
++  'type Query {\n  getAllReservations: ReservationResult!\n  getAllRooms: RoomResult!\n  getReservation(id: ID!): ReservationResult!\n}\n\ntype Mutation {\n  createReservation(input: ReservationInput!): ReservationResult!\n  deleteReservation(reservationId: Int!): ReservationResult!\n}\n\ntype Reservation {\n  id: ID!\n  room_id: String!\n  checkin_date: String!\n  checkout_date: String!\n  total_charge: Float!\n}\n\ntype Room {\n  id: String!\n  num_beds: Int!\n  allow_smoking: Boolean!\n  daily_rate: Float!\n  cleaning_fee: Float!\n}\n\ninput ReservationInput {\n  room_id: String!\n  checkin_date: String!\n  checkout_date: String!\n}\n\ntype ReservationResult {\n  success: Boolean!\n  errors: [String]\n  reservations: [Reservation]\n}\n\ntype RoomResult {\n  success: Boolean!\n  errors: [String]\n  rooms: [Room]\n}',
++  { identities: { Room: ['id'], Reservation: ['id'] } },
++);
+diff --git a/frontend/src/app/tandrove/hotel-transport.spec.ts b/frontend/src/app/tandrove/hotel-transport.spec.ts
+new file mode 100644
+index 0000000..1c61a7b
+--- /dev/null
++++ b/frontend/src/app/tandrove/hotel-transport.spec.ts
+@@ -0,0 +1,170 @@
++import { TestBed } from '@angular/core/testing';
++import { signal } from '@angular/core';
++import { AuthService } from '../core/services/auth.service';
++import { hotelTransport } from './hotel-transport';
++import { RoomCatalog, rooms, roomRates } from './room-catalog';
++
++const room = {
++  __typename: 'Room',
++  id: 'room_1',
++  num_beds: 2,
++  allow_smoking: false,
++  daily_rate: 140,
++  cleaning_fee: 20,
++};
++const response = (rate = 140) => ({
++  data: {
++    getAllRooms: {
++      __typename: 'RoomResult',
++      success: true,
++      errors: null,
++      rooms: [{ ...room, daily_rate: rate }],
++    },
++  },
++});
++
++describe('Hotel Tandrove integration', () => {
++  const token = signal<string | null>('trial-token');
++  let send: jasmine.Spy;
++  beforeEach(() => {
++    token.set('trial-token');
++    send = spyOn(window, 'fetch').and.callFake(
++      async () => new Response(JSON.stringify(response())),
++    );
++    TestBed.configureTestingModule({
++      providers: [
++        RoomCatalog,
++        { provide: AuthService, useValue: { sessionToken: token } },
++      ],
++    });
++  });
++  afterEach(() => TestBed.resetTestingModule());
++
++  it('adds business status without widening the requested room fields or changing the address', async () => {
++    const full = rooms.bind({}, { source: 'hotel-api', scope: 'test' });
++    const narrow = roomRates.bind({}, { source: 'hotel-api', scope: 'test' });
++    expect(full.stateAddress).toBe(narrow.stateAddress);
++    await hotelTransport(
++      'http://localhost/graphql',
++      'captured-token',
++    )(full.prepare('daily_rate'));
++    const request = send.calls.mostRecent().args[0] as Request;
++    const body = await request.json();
++    expect(request.headers.get('authorization')).toBe('Bearer captured-token');
++    expect(body.query).toContain('success');
++    expect(body.query).toContain('errors');
++    expect(body.query).toContain('daily_rate');
++    expect(body.query).not.toContain('cleaning_fee');
++    expect(body.query).not.toContain('num_beds');
++  });
++
++  it('rejects business failure, preserves both consumers, then refreshes only rates', async () => {
++    const catalog = TestBed.inject(RoomCatalog);
++    const full = catalog.client.watch(rooms.bind({}, catalog.binding()));
++    const preview = catalog.client.watch(roomRates.bind({}, catalog.binding()));
++    await Promise.all([full.ensure(), preview.ensure()]);
++    expect(send.calls.count()).toBe(1);
++    send.and.callFake(
++      async () =>
++        new Response(
++          JSON.stringify({
++            data: {
++              getAllRooms: {
++                __typename: 'RoomResult',
++                success: false,
++                errors: ['Catalog unavailable'],
++                rooms: null,
++              },
++            },
++          }),
++        ),
++    );
++    await expectAsync(full.invalidate('daily_rate')).toBeRejectedWithError(
++      'Catalog unavailable',
++    );
++    expect(send.calls.count()).toBe(2); // Business errors are not retried.
++    expect(full.getSnapshot().records?.[0]?.data.daily_rate).toBe(140);
++    expect(preview.getSnapshot().records?.[0]?.data.daily_rate).toBe(140);
++    send.and.callFake(
++      async () =>
++        new Response(
++          JSON.stringify({
++            data: {
++              getAllRooms: {
++                __typename: 'RoomResult',
++                success: true,
++                errors: null,
++                rooms: [{ ...room, daily_rate: 155, num_beds: 99 }],
++              },
++            },
++          }),
++        ),
++    );
++    await full.invalidate('daily_rate');
++    expect(preview.getSnapshot().records?.[0]?.data.daily_rate).toBe(155);
++    expect(full.getSnapshot().records?.[0]?.data.num_beds).toBe(2);
++    preview.dispose();
++    await full.invalidate('daily_rate');
++    expect(full.getSnapshot().records?.[0]?.data.daily_rate).toBe(155);
++    full.dispose();
++  });
++
++  it('passes located GraphQL errors through to the source decoder', async () => {
++    const partial = {
++      data: {
++        getAllRooms: {
++          __typename: 'RoomResult',
++          success: true,
++          errors: null,
++          rooms: null,
++        },
++      },
++      errors: [{ message: 'Unavailable', path: ['getAllRooms', 'rooms'] }],
++    };
++    send.and.callFake(async () => new Response(JSON.stringify(partial)));
++    const result = await hotelTransport(
++      'http://localhost/graphql',
++      'token',
++    )(rooms.bind({}, { source: 'hotel-api', scope: 'test' }).prepare());
++    expect(result).toEqual(partial);
++  });
++
++  it('rejects malformed business envelopes', async () => {
++    send.and.callFake(
++      async () =>
++        new Response(
++          JSON.stringify({
++            data: { getAllRooms: { __typename: 'RoomResult', rooms: [room] } },
++          }),
++        ),
++    );
++    await expectAsync(
++      hotelTransport(
++        'http://localhost/graphql',
++        'token',
++      )(rooms.bind({}, { source: 'hotel-api', scope: 'test' }).prepare()),
++    ).toBeRejectedWithError('Invalid hotel result envelope.');
++  });
++
++  it('rejects anonymous setup and synchronously gates changed credentials', async () => {
++    const catalog = TestBed.inject(RoomCatalog);
++    const full = catalog.client.watch(rooms.bind({}, catalog.binding()));
++    await full.ensure();
++    token.set(null);
++    expect(() => catalog.binding()).toThrowError(
++      'Hotel session changed. Sign in again.',
++    );
++    TestBed.tick();
++    await expectAsync(full.ensure()).toBeRejected();
++    TestBed.resetTestingModule();
++    TestBed.configureTestingModule({
++      providers: [
++        RoomCatalog,
++        { provide: AuthService, useValue: { sessionToken: token } },
++      ],
++    });
++    expect(() => TestBed.inject(RoomCatalog)).toThrowError(
++      'Sign in before loading rooms.',
++    );
++  });
++});
+diff --git a/frontend/src/app/tandrove/hotel-transport.ts b/frontend/src/app/tandrove/hotel-transport.ts
+new file mode 100644
+index 0000000..4d63ede
+--- /dev/null
++++ b/frontend/src/app/tandrove/hotel-transport.ts
+@@ -0,0 +1,59 @@
++import { Kind, print, visit } from 'graphql';
++import { httpTransport, type GraphQLTransport } from '@tandrove/graphql';
++
++function object(value: unknown): value is Record<string, unknown> {
++  return value !== null && typeof value === 'object' && !Array.isArray(value);
++}
++
++/** The hotel's in-band result envelope is application policy, outside the cache. */
++export function hotelTransport(
++  endpoint: string,
++  token: string,
++): GraphQLTransport {
++  const send = httpTransport({
++    endpoint,
++    headers: () => ({ Authorization: `Bearer ${token}` }),
++  });
++  return async (operation, context) => {
++    if (operation.responsePath[0] !== 'getAllRooms')
++      throw new Error('Unsupported hotel read.');
++    const document = visit(operation.document, {
++      Field(node) {
++        if (node.name.value !== 'getAllRooms' || !node.selectionSet)
++          return undefined;
++        return {
++          ...node,
++          selectionSet: {
++            ...node.selectionSet,
++            selections: [
++              ...node.selectionSet.selections,
++              ...['success', 'errors'].map((value) => ({
++                kind: Kind.FIELD as const,
++                name: { kind: Kind.NAME as const, value },
++              })),
++            ],
++          },
++        };
++      },
++    });
++    const response = await send(
++      { ...operation, document, query: print(document) },
++      context,
++    );
++    // Leave standard GraphQL execution errors to Tandrove's partial-result decoder.
++    if (!object(response) || !object(response['data'])) return response;
++    const result = response['data']['getAllRooms'];
++    if (result === null) return response;
++    if (!object(result) || typeof result['success'] !== 'boolean')
++      throw new Error('Invalid hotel result envelope.');
++    if (!result['success']) {
++      const errors = result['errors'];
++      throw new Error(
++        Array.isArray(errors) && typeof errors[0] === 'string'
++          ? errors[0]
++          : 'Unable to load rooms.',
++      );
++    }
++    return response;
++  };
++}
+diff --git a/frontend/src/app/tandrove/room-catalog.ts b/frontend/src/app/tandrove/room-catalog.ts
+new file mode 100644
+index 0000000..d70850f
+--- /dev/null
++++ b/frontend/src/app/tandrove/room-catalog.ts
+@@ -0,0 +1,48 @@
++import { DestroyRef, Injectable, effect, inject } from '@angular/core';
++import { createGraphQLClient } from '@tandrove/graphql';
++import { schema } from './generated/hotel';
++import { AuthService } from '../core/services/auth.service';
++import { hotelTransport } from './hotel-transport';
++
++export const rooms = schema.field('getAllRooms').field('rooms').select({
++  id: true,
++  num_beds: true,
++  allow_smoking: true,
++  daily_rate: true,
++  cleaning_fee: true,
++});
++export const roomRates = rooms.select({ id: true, daily_rate: true });
++
++/** One client per booking component; child views own independent handles. */
++@Injectable()
++export class RoomCatalog {
++  private readonly auth = inject(AuthService);
++  private readonly token = this.auth.sessionToken();
++  readonly client = createGraphQLClient({
++    transport: hotelTransport(
++      new URL('/graphql', location.origin).href,
++      this.requireToken(),
++    ),
++    retry: { retries: 1, initialDelayMs: 100, maxDelayMs: 100 },
++    requestPolicy: {
++      requestTimeoutMs: 2000,
++      retentionMs: 500,
++      freshness: { staleTimeMs: 30000, revalidate: 'on-demand' },
++    },
++  });
++  constructor() {
++    effect(() => {
++      if (this.auth.sessionToken() !== this.token) this.client.dispose();
++    });
++    inject(DestroyRef).onDestroy(() => this.client.dispose());
++  }
++  binding() {
++    if (this.auth.sessionToken() !== this.token)
++      throw new Error('Hotel session changed. Sign in again.');
++    return { source: 'hotel-api', scope: 'booking-session' } as const;
++  }
++  private requireToken(): string {
++    if (!this.token) throw new Error('Sign in before loading rooms.');
++    return this.token;
++  }
++}
+diff --git a/frontend/src/app/tandrove/room-rate.component.ts b/frontend/src/app/tandrove/room-rate.component.ts
+new file mode 100644
+index 0000000..3afd633
+--- /dev/null
++++ b/frontend/src/app/tandrove/room-rate.component.ts
+@@ -0,0 +1,54 @@
++import { Component, computed, inject, input } from '@angular/core';
++import { CurrencyPipe } from '@angular/common';
++import { injectStateQuery } from '@tandrove/angular';
++import { RoomCatalog, roomRates } from './room-catalog';
++
++@Component({
++  selector: 'app-room-rate',
++  standalone: true,
++  imports: [CurrencyPipe],
++  template: `
++    <p data-testid="room-rate">
++      @if (!roomId()) {
++        Select a room to see its rate.
++      } @else if (rate() === undefined) {
++        Selected room rate is unavailable.
++      } @else {
++        Selected room rate: {{ rate() | currency }} per night.
++      }
++    </p>
++    @if (rateIssue()) {
++      <p role="status">{{ rateIssue() }} Displayed rates may be out of date.</p>
++    }
++    <small>Room charges are confirmed by the server when you book.</small>
++  `,
++})
++export class RoomRateComponent {
++  readonly roomId = input.required<string>();
++  private readonly catalog = inject(RoomCatalog);
++  readonly query = injectStateQuery(
++    () => roomRates.bind({}, this.catalog.binding()),
++    (definition) => this.catalog.client.watch(definition),
++  );
++  readonly rate = computed(() => {
++    const state = this.query.state();
++    return state.status === 'active'
++      ? state.snapshot.records?.find(
++          (record) => record.data.id === this.roomId(),
++        )?.data.daily_rate
++      : undefined;
++  });
++  readonly rateIssue = computed(() => {
++    const state = this.query.state();
++    if (state.status !== 'active')
++      return state.status === 'error' ? 'Rate lookup failed.' : '';
++    return (
++      state.snapshot.error ||
++      state.snapshot.resourceError ||
++      state.snapshot.records
++        ?.find((record) => record.data.id === this.roomId())
++        ?.fields.find((field) => field.error)?.error ||
++      (state.snapshot.stale ? 'Rates need refresh.' : '')
++    );
++  });
++}
