@@ -6,7 +6,7 @@ import {
   type Signal,
 } from '@angular/core';
 import type { StoreReader } from '@tandrove/core';
-import { observeReader } from './observe-reader.js';
+import { observeReader } from './observe-reader';
 
 export interface TandroveSignalOptions {
   /** Defaults to the current injection context's lifetime. */

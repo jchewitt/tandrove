@@ -1,4 +1,4 @@
-import '@angular/compiler';
+import { configureChangeDetection } from './test-environment.mjs';
 import assert from 'node:assert/strict';
 import {
   createEnvironmentInjector,
@@ -8,14 +8,10 @@ import {
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-  ServerTestingModule,
-  platformServerTesting,
-} from '@angular/platform-server/testing';
 import { AcquisitionClient, resourceAddress } from '@tandrove/core';
 import { injectStateQuery, provideTandroveClient } from '@tandrove/angular';
 
-TestBed.initTestEnvironment(ServerTestingModule, platformServerTesting());
+configureChangeDetection();
 const token = new InjectionToken('packed client');
 const root = createEnvironmentInjector(
   [provideTandroveClient(token, () => new AcquisitionClient())],

@@ -10,13 +10,19 @@ import {
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
+import {
+  angularBuildTarget,
+  angularPeerRange,
+} from './angular-compatibility.mjs';
 
 export function checkAngularPackage({
   root,
   artifacts,
   coreTarball,
+  graphqlTarball,
   npm,
   registry = false,
+  target = angularBuildTarget,
 }) {
   const output = join(root, 'packages/angular/dist');
   mkdirSync(output, { recursive: true });
@@ -37,7 +43,7 @@ export function checkAngularPackage({
   const files = packed.files.map(({ path }) => path);
   for (const file of [
     'fesm2022/tandrove-angular.mjs',
-    'types/tandrove-angular.d.ts',
+    'index.d.ts',
     'package.json',
     'LICENSE',
     'README.md',
@@ -45,7 +51,9 @@ export function checkAngularPackage({
     assert.ok(files.includes(file), `Missing Angular package file: ${file}`);
   assert.ok(
     files.every((file) =>
-      /^(fesm2022\/|types\/|package\.json$|LICENSE$|README\.md$)/.test(file),
+      /^(fesm2022\/|index\.d\.ts(?:\.map)?$|package\.json$|LICENSE$|README\.md$)/.test(
+        file,
+      ),
     ),
   );
   const manifest = JSON.parse(
@@ -53,12 +61,12 @@ export function checkAngularPackage({
   );
   assert.notEqual(manifest.private, true);
   assert.equal(manifest.sideEffects, false);
-  assert.equal(manifest.exports['.'].types, './types/tandrove-angular.d.ts');
+  assert.equal(manifest.exports['.'].types, './index.d.ts');
   assert.equal(
     manifest.exports['.'].default,
     './fesm2022/tandrove-angular.mjs',
   );
-  assert.equal(manifest.typings, 'types/tandrove-angular.d.ts');
+  assert.equal(manifest.typings, 'index.d.ts');
   assert.equal(manifest.module, 'fesm2022/tandrove-angular.mjs');
   assert.equal(manifest.main, undefined);
   assert.equal(manifest.types, undefined);
@@ -68,7 +76,7 @@ export function checkAngularPackage({
     JSON.parse(readFileSync(join(root, 'packages/core/package.json'), 'utf8'))
       .version,
   );
-  assert.equal(manifest.peerDependencies['@angular/core'], '^21.2.25');
+  assert.equal(manifest.peerDependencies['@angular/core'], angularPeerRange);
   assert.equal(
     readFileSync(join(output, 'LICENSE'), 'utf8'),
     readFileSync(join(root, 'LICENSE'), 'utf8'),
@@ -88,6 +96,7 @@ export function checkAngularPackage({
     npm(
       [
         'install',
+        '--strict-peer-deps',
         '--ignore-scripts',
         '--no-audit',
         '--no-fund',
@@ -95,19 +104,24 @@ export function checkAngularPackage({
         ...(registry ? ['--prefer-online'] : []),
         '--registry=https://registry.npmjs.org/',
         registry ? `@tandrove/core@${manifest.version}` : coreTarball,
+        registry ? `@tandrove/graphql@${manifest.version}` : graphqlTarball,
         registry
           ? `@tandrove/angular@${manifest.version}`
           : join(artifacts, packed.filename),
-        '@angular/core@21.2.25',
-        '@angular/compiler@21.2.25',
-        '@angular/compiler-cli@21.2.25',
-        '@angular/common@21.2.25',
-        '@angular/platform-browser@21.2.25',
-        '@angular/platform-browser-dynamic@21.2.25',
-        '@angular/platform-server@21.2.25',
+        ...[
+          'core',
+          'compiler',
+          'compiler-cli',
+          'common',
+          'platform-browser',
+          'platform-browser-dynamic',
+          'platform-server',
+        ].map((name) => `@angular/${name}@${target.angular}`),
+        'graphql@16.14.2',
         'rxjs@7.8.2',
+        'zone.js@0.15.1',
         'tslib@2.8.1',
-        'typescript@5.9.3',
+        `typescript@${target.typescript}`,
       ],
       consumer,
     );
@@ -129,6 +143,20 @@ export function checkAngularPackage({
     );
     assert.equal(installedCore.name, '@tandrove/core');
     assert.equal(installedCore.version, manifest.version);
+    for (const [name, version] of [
+      ['@angular/core', target.angular],
+      ['@angular/compiler-cli', target.angular],
+      ['typescript', target.typescript],
+    ])
+      assert.equal(
+        JSON.parse(
+          readFileSync(
+            join(consumer, 'node_modules', name, 'package.json'),
+            'utf8',
+          ),
+        ).version,
+        version,
+      );
     const fixtureRoot = join(root, 'tests/fixtures/angular-consumer');
     for (const file of [
       'consumer.mjs',
@@ -144,10 +172,34 @@ export function checkAngularPackage({
       cwd: consumer,
       stdio: 'inherit',
     });
-    execFileSync(process.execPath, [join(consumer, 'owned-query.mjs')], {
-      cwd: consumer,
-      stdio: 'inherit',
-    });
+    // Reuse the real behavioral suite against installed packages, not source
+    // aliases. Both modes are explicit rather than relying on a major's default.
+    writeFileSync(
+      join(consumer, 'adapter.mjs'),
+      "export * from '@tandrove/angular';\n",
+    );
+    for (const file of [
+      'test-environment.mjs',
+      'signal.test.mjs',
+      'query.test.mjs',
+    ])
+      writeFileSync(
+        join(consumer, file),
+        readFileSync(join(root, 'packages/angular/test', file)),
+      );
+    for (const mode of ['zone', 'zoneless']) {
+      const env = { ...process.env, TANDROVE_TEST_CHANGE_DETECTION: mode };
+      execFileSync(process.execPath, [join(consumer, 'owned-query.mjs')], {
+        cwd: consumer,
+        stdio: 'inherit',
+        env,
+      });
+      execFileSync(
+        process.execPath,
+        ['--test', 'signal.test.mjs', 'query.test.mjs'],
+        { cwd: consumer, stdio: 'inherit', env },
+      );
+    }
     execFileSync(
       process.execPath,
       [
@@ -165,7 +217,7 @@ export function checkAngularPackage({
       /ɵɵdefineComponent/,
     );
     console.log(
-      `${registry ? 'Public registry' : 'Tarball'} Angular APF, native ESM observation and AOT template consumer passed: @tandrove/angular ${manifest.version}`,
+      `${registry ? 'Public registry' : 'Tarball'} Angular ${target.angular} / TypeScript ${target.typescript}: APF, Zone/zoneless lifecycle, native ESM and AOT consumer passed: @tandrove/angular ${manifest.version}`,
     );
     if (registry)
       console.log(

@@ -428,6 +428,7 @@ checkAngularPackage({
   root,
   artifacts,
   coreTarball: join(artifacts, packed.filename),
+  graphqlTarball: graphqlPacked.filename,
   npm,
   registry,
 });

@@ -1,9 +1,9 @@
-export { tandroveSignal } from './tandrove-signal.js';
-export type { TandroveSignalOptions } from './tandrove-signal.js';
-export { provideTandroveClient } from './provide-client.js';
-export { injectStateQuery } from './inject-query.js';
+export { tandroveSignal } from './tandrove-signal';
+export type { TandroveSignalOptions } from './tandrove-signal';
+export { provideTandroveClient } from './provide-client';
+export { injectStateQuery } from './inject-query';
 export type {
   StateQuery,
   StateQueryOptions,
   StateQueryState,
-} from './query-types.js';
+} from './query-types';

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "module": "ES2022",
     "moduleResolution": "bundler",
+    "paths": { "@angular/*": ["./node_modules/@angular/*"] },
     "lib": ["ES2022", "DOM"],
     "experimentalDecorators": true,
     "outDir": "./dist/types",

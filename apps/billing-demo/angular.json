@@ -34,7 +34,7 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
-          "options": { "proxyConfig": "proxy.conf.json" },
+          "options": { "proxyConfig": "proxy.conf.json", "prebundle": false },
           "configurations": {
             "production": { "buildTarget": "billing-demo:build:production" },
             "development": { "buildTarget": "billing-demo:build:development" }

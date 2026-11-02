@@ -134,14 +134,14 @@ export function validatePackedPackage({ manifest, files, entry, version }) {
   validateManifest(manifest, entry.packageName, version);
   const angular = entry.packageName === names[2];
   const required = angular
-    ? ['fesm2022/tandrove-angular.mjs', 'types/tandrove-angular.d.ts']
+    ? ['fesm2022/tandrove-angular.mjs', 'index.d.ts']
     : ['dist/index.js', 'dist/index.d.ts'];
   if (entry.packageName === names[1])
     required.push('dist/codegen.js', 'dist/codegen.d.ts');
   for (const path of ['package.json', 'README.md', 'LICENSE', ...required])
     if (!files.includes(path)) throw new Error(`Missing packed file: ${path}`);
   const allowed = angular
-    ? /^(fesm2022\/|types\/|package\.json$|README\.md$|LICENSE$)/
+    ? /^(fesm2022\/|index\.d\.ts(?:\.map)?$|package\.json$|README\.md$|LICENSE$)/
     : /^(dist\/|package\.json$|README\.md$|LICENSE$)/;
   if (
     files.some((path) => !allowed.test(path) || path.split('/').includes('..'))
@@ -150,7 +150,7 @@ export function validatePackedPackage({ manifest, files, entry, version }) {
   if (angular) {
     if (
       manifest.exports?.['.']?.default !== './fesm2022/tandrove-angular.mjs' ||
-      manifest.exports?.['.']?.types !== './types/tandrove-angular.d.ts' ||
+      manifest.exports?.['.']?.types !== './index.d.ts' ||
       manifest.scripts ||
       manifest.devDependencies
     )
