@@ -5,7 +5,11 @@ import {
   type InputObject,
   type ResolvedField,
 } from './definition.js';
-import { StateStore, validatedSelection } from './state-store.js';
+import {
+  StateStore,
+  validatedSelection,
+  readViewProjectionSignature,
+} from './state-store.js';
 import { leafPaths } from './acquisition-coverage.js';
 import { AcquisitionScheduler } from './acquisition-scheduler.js';
 import { ReadRetrier, type AcquisitionClientOptions } from './read-retry.js';
@@ -122,6 +126,22 @@ interface QueryHandleOf<Target extends string, Snapshot> extends Omit<
   /** Register owner-bound selective polling; stopping releases future scheduling. */
   poll(options?: PollOptions<Target>): () => void;
 }
+interface SnapshotComparison {
+  readonly projection: string;
+  readonly fetching: boolean;
+  readonly error: string;
+}
+function sameSnapshotComparison(
+  left: SnapshotComparison,
+  right: SnapshotComparison,
+): boolean {
+  return (
+    left.projection === right.projection &&
+    left.fetching === right.fetching &&
+    left.error === right.error
+  );
+}
+
 class Handle {
   active = true;
   readonly lifetime = new Cancellation();
@@ -134,8 +154,8 @@ class Handle {
   }
   private snapshot: QuerySnapshot;
   private viewSnapshot: StateSnapshot;
-  private signature: string;
-  private notifiedSignature: string;
+  private comparison: SnapshotComparison;
+  private notifiedComparison: SnapshotComparison;
   private readonly listeners = new Set<() => void>();
   private readonly unsubscribe: () => void;
   constructor(
@@ -144,15 +164,16 @@ class Handle {
   ) {
     this.viewSnapshot = view.getSnapshot();
     this.snapshot = Object.freeze({ ...this.viewSnapshot, error: undefined });
-    this.signature = canonicalInput(this.snapshot);
-    this.notifiedSignature = this.signature;
+    this.comparison = this.compareView(this.viewSnapshot);
+    this.notifiedComparison = this.comparison;
     this.unsubscribe = view.subscribe(() => this.publish());
   }
   publish(): void {
     if (!this.active) return;
     this.refreshSnapshot();
-    if (this.signature === this.notifiedSignature) return;
-    this.notifiedSignature = this.signature;
+    if (sameSnapshotComparison(this.comparison, this.notifiedComparison))
+      return;
+    this.notifiedComparison = this.comparison;
     for (const listener of [...this.listeners])
       if (this.active && this.listeners.has(listener)) {
         try {
@@ -161,6 +182,16 @@ class Handle {
           this.onListenerError(error);
         }
       }
+  }
+  private compareView(snapshot: StateSnapshot): SnapshotComparison {
+    // Both reads use our side-effect-free View, with no callback/await between
+    // getSnapshot and this accessor. Capture strings, not historical snapshots.
+    return {
+      projection: readViewProjectionSignature(this.view),
+      fetching: snapshot.fetching,
+      // Untyped Error.message values still get canonical validation/equality.
+      error: canonicalInput({ error: this.error }),
+    };
   }
   private refreshSnapshot(): void {
     if (!this.active) return;
@@ -171,17 +202,15 @@ class Handle {
     )
       return;
     this.viewSnapshot = viewSnapshot;
-    // Views are immutable and retain identity until their projection changes.
-    // Changed references still need value equality: reentrant updates can return
-    // to an equivalent state before this handle is read or notified.
-    const snapshot = Object.freeze({
+    // Reuse the store's value comparison: reentrant updates can return to an
+    // equivalent projection before this handle is read or notified.
+    const comparison = this.compareView(viewSnapshot);
+    if (sameSnapshotComparison(comparison, this.comparison)) return;
+    this.comparison = comparison;
+    this.snapshot = Object.freeze({
       ...viewSnapshot,
       error: this.error,
     });
-    const signature = canonicalInput(snapshot);
-    if (signature === this.signature) return;
-    this.signature = signature;
-    this.snapshot = snapshot;
   }
   getSnapshot(): QuerySnapshot {
     this.refreshSnapshot();
