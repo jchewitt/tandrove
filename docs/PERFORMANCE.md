@@ -1,6 +1,6 @@
 # Base-client scale and lifecycle measurements
 
-**B7c remains open.** The desktop baseline and request-version, handle snapshot, store projection and validated-input measurements below are synthetic, not a production workload, real application trial or proof of memory safety. The optimizations reduce refresh cost, but large-list latency remains a readiness finding. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
+**B7c remains open.** The desktop baseline and request-version, handle snapshot, store projection, validated-input and query-handle equality measurements below are synthetic, not a production workload, real application trial or proof of memory safety. The optimizations reduce refresh cost, but large-list latency remains a readiness finding. The [application trial](APPLICATION-TRIAL.md) and [final API decision](BASE-API-AUDIT.md) remain separate gates.
 
 ## Reproduce
 
@@ -155,10 +155,36 @@ Eight public regressions cover normalized values and canonical addresses, invali
 
 The separate Node attribution profile described above reports 1,612.96 sampled process ms versus 2,029.16 before. `canonicalInput` falls from 1,201.53 to 851.75 sampled inclusive ms (52.81% of the new total), and reconciliation falls from 422.40 to 187.45 ms. `Handle.refreshSnapshot` remains at 465.37 ms and `View.update` at 320.44 ms. Subtrees overlap and the process includes startup, fixtures and assertions; these are attribution clues, not additive or precise operation timings. Whole-view canonical equality remains the next target, with notification/reentrancy behavior preserved.
 
+### November 2 query-handle equality reuse
+
+This PERF-01 slice removes a second whole-snapshot canonical serialization in query handles. Each store view already computes a canonical string for its projection; a package-internal reader now exposes that string through a private weak lookup from the public frozen facade to its existing view. The lookup adds no public marker or registration API. Facades already retain the same view through method closures; the lookup is not keyed by historical snapshots.
+
+Handles capture the projection string, fetching flag and a separately canonicalized error component. Last-observed and last-notified comparisons remain independent, preserving reads before callbacks and unseen reentrant A → B → A suppression. Last-notified state retains only strings/booleans, not an old snapshot graph. The existing unchanged-view/error fast path remains. Even an untyped custom `Error.message` still receives canonical validation rather than being silently accepted or compared only by reference. Store projection computation/equality, input validation, public `StateView`/package exports and source execution are unchanged.
+
+A [fresh baseline](measurements/b7-view-equality-baseline.json) was captured before implementation on clean `dc39f44be4de1b824c7b57f1a2f18e720103a11c`. Its runtime digest matches the October 26 validated-input candidate, but its timings reflect this session's conditions. The [candidate rerun](measurements/b7-view-equality.json) records that same parent with `sourceDirty: true` and a new runtime digest. Only `acquisition.ts` and `state-store.ts` change in core/GraphQL runtime source. Both reports use the same unchanged harness hashes, sample counts, dimensions, package versions and machine/software environment. No deliberate builds, tests or probes ran concurrently with either measurement.
+
+| Environment               | Records | Full refresh median (ms) | Single-field refresh median (ms) |
+| ------------------------- | ------: | -----------------------: | -------------------------------: |
+| Node                      |     100 |                    12.79 |                             5.90 |
+| Node                      |   1,000 |                   129.07 |                            51.82 |
+| Node                      |   5,000 |                   653.08 |                           279.30 |
+| Chromium, 1×              |     100 |                     9.30 |                             3.50 |
+| Chromium, 1×              |   1,000 |                    85.90 |                            30.20 |
+| Chromium, 4× CPU throttle |     100 |                    41.00 |                            16.50 |
+| Chromium, 4× CPU throttle |   1,000 |                   385.10 |                           148.10 |
+
+All 14 candidate refresh medians improved against the fresh baseline. The 5,000-record Node full/narrow medians fell from 952.38/543.80 ms to 653.08/279.30 ms (about 31%/49%). Unthrottled 1,000-record Chromium fell from 117.00/60.00 ms to 85.90/30.20 ms (about 27%/50%); at 4× it fell from 536.50/278.80 ms to 385.10/148.10 ms. All refresh and lifecycle correctness assertions passed. These are bounded, small-sample observations, not universal speedups or accepted response-time budgets.
+
+At 1×, post-GC whole-isolate used heap was 3.94 MB at baseline, 20.10–20.12 MB active, 3.96–3.99 MB released and 3.90 MB disposed. At 4× it was 3.94 MB, 20.11–20.12 MB, 3.97–3.99 MB and 3.90 MB respectively. Active usage is about 1.9 MB below the fresh baseline's roughly 22.02–22.05 MB. Warmed/released/disposed usage remains in a similar range, with small increases of several kilobytes; this slice does not resolve the earlier roughly 1.05 MB higher post-release footprint. Released batches again have zero harness-owned owners/subscriptions and in-flight fixture calls, with 21 verified reacquisitions per profile. These observations neither isolate allocations nor establish long-session boundedness.
+
+Five new public regressions cover reentrant stale-to-fresh cycles with early/unread peers, payload names that resemble metadata, valid and invalid untyped error messages, owner isolation, listener failures and unsubscription during reentrant publication. The reviewer independently passed 60 targeted tests and compared 1,200 deterministic 50-action traces: 60,000 actions and 391,164 matching observations of snapshots, outer-reference changes, callbacks and failures. The diagnostic drives previous/candidate handles through real current store facades; store behavioral logic is unchanged. It is tested-history equivalence evidence rather than a proof of every possible history.
+
+Fresh before/after attribution profiles use the same separate 1,000-record workload described above. Total sampled process time fell from 1,607.03 to 1,170.17 ms. `Handle.refreshSnapshot` accounted for 462.37 sampled inclusive ms before and had no attributed samples afterward; this does not claim zero execution cost. `canonicalInput` fell from 870.22 to 371.41 ms, while `View.update` remained at 327.51/333.13 ms. Subtrees overlap and include startup, fixtures and assertions. The remaining store projection equality/copying path is the next focused investigation; these profiles do not justify bypassing input validation or accepting performance budgets.
+
 ### Remaining investigation
 
 Timing and memory numbers are evidence, not automatically accepted budgets. Do not increase a budget to make a slow baseline pass. Establish application responsiveness and retained-memory budgets on the intended workload/device after profiling and rerunning any fixes.
 
-**PERF-01 remains open.** Next, reduce remaining whole-view equality work in snapshot publication while preserving exact value equality, reads before notification and reentrant updates. Keep that change separately reviewed and repeat the same dimensions. Retain the validated-input trust boundary and attribute the higher post-release footprint observed after this change before accepting memory budgets. The current 1,000-record browser times, particularly under CPU throttling, remain substantial before network or Angular rendering. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
+**PERF-01 remains open.** Next, investigate remaining canonical copying in store projection equality while preserving exact value equality, partial/null/error states, canonical ordering and reentrant publication. Keep any change separately reviewed and repeat the same dimensions. Retain the validated-input trust boundary and attribute the higher post-release footprint observed after validated-input reuse before accepting memory budgets. The current 1,000-record browser times, particularly under CPU throttling, remain substantial before network or Angular rendering. Optimize compiled operation reuse only if profiling shows it materially addresses the observed cost; a fast preparation microbenchmark does not justify a plan cache by itself.
 
 B7c closes only after the scale finding is resolved or bounded by an explicitly accepted supported workload, repeated lifecycle and memory results are assessed, and a physical lower-powered environment or an explicitly agreed alternative supplies the remaining evidence. B7d must review that evidence before declaring extension readiness. The existing release PR remains batched.

@@ -296,6 +296,9 @@ class View implements StateView {
   getSnapshot(): StateSnapshot {
     return this.snapshot;
   }
+  projectionSignature(): string {
+    return this.signature;
+  }
   subscribe(listener: () => void): () => void {
     if (!this.active) throw new Error('View is disposed.');
     // Each subscription owns its registration even if callers reuse a callback.
@@ -311,6 +314,17 @@ class View implements StateView {
     this.listeners.clear();
     this.resource.views.delete(this);
   }
+}
+
+// Public facades already retain their View through bound method closures. This
+// weak lookup adds no historical snapshot retention or public trust marker.
+const storeViews = new WeakMap<StateView, View>();
+
+/** Internal read access; only the store computes projection equality. */
+export function readViewProjectionSignature(view: StateView): string {
+  const stored = storeViews.get(view);
+  if (!stored) throw new Error('Expected a store-owned view.');
+  return stored.projectionSignature();
 }
 
 /** Shared storage only: execution, generations, retry and reconciliation live above this boundary. */
@@ -336,13 +350,15 @@ export class StateStore {
     const resource = this.resource(address);
     const view = new View(address, selection, resource);
     resource.views.add(view);
-    return Object.freeze({
+    const facade = Object.freeze({
       stateAddress: address,
       selection,
       getSnapshot: () => view.getSnapshot(),
       subscribe: (listener: () => void) => view.subscribe(listener),
       dispose: () => view.dispose(),
     });
+    storeViews.set(facade, view);
+    return facade;
   }
   /** Coordinator structural guard; no snapshot mutation or resource creation. */
   matchesObject(
