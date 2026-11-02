@@ -1,5 +1,7 @@
 # Existing hotel application trial
 
+Follow-ups: [save-listener ownership](SAVE-OWNERSHIP.md) and [authenticated account/save races](ACCOUNT-RACES.md). The findings and open items below describe the initial trial; those reports record the subsequent fixes and remaining gates.
+
 November 2, 2026. **The room-read integration passed this bounded trial; B7b remains in progress.** No library runtime changes or npm publication were needed. The integration lives in an isolated worktree; the upstream application and active user projects were not modified.
 
 ## Revisions and environment

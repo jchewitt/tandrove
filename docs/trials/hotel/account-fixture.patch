@@ -1,0 +1,457 @@
+diff --git a/backend/src/main/java/com/acme/hotel/auth/AuthController.java b/backend/src/main/java/com/acme/hotel/auth/AuthController.java
+index 7a5632a..6d0b82e 100644
+--- a/backend/src/main/java/com/acme/hotel/auth/AuthController.java
++++ b/backend/src/main/java/com/acme/hotel/auth/AuthController.java
+@@ -17,9 +17,11 @@ public class AuthController {
+   private static final int EXPIRES_IN_SECONDS = 3600;
+ 
+   private final JwtUtil jwtUtil;
++  private final TrialAccounts trialAccounts;
+ 
+-  public AuthController(JwtUtil jwtUtil) {
++  public AuthController(JwtUtil jwtUtil, TrialAccounts trialAccounts) {
+     this.jwtUtil = jwtUtil;
++    this.trialAccounts = trialAccounts;
+   }
+ 
+   @PostMapping("/token")
+@@ -28,7 +30,8 @@ public class AuthController {
+       @RequestParam("username") String username,
+       @RequestParam("password") String password) {
+ 
+-    if (!VALID_USERNAME.equals(username) || !VALID_PASSWORD.equals(password)) {
++    if ((!VALID_USERNAME.equals(username) && !trialAccounts.acceptsSecondAccount(username))
++        || !VALID_PASSWORD.equals(password)) {
+       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+           .body(
+               Map.of(
+diff --git a/backend/src/main/java/com/acme/hotel/auth/JwtAuthFilter.java b/backend/src/main/java/com/acme/hotel/auth/JwtAuthFilter.java
+index 0936464..5270eea 100644
+--- a/backend/src/main/java/com/acme/hotel/auth/JwtAuthFilter.java
++++ b/backend/src/main/java/com/acme/hotel/auth/JwtAuthFilter.java
+@@ -15,9 +15,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
+ public class JwtAuthFilter extends OncePerRequestFilter {
+ 
+   private final JwtUtil jwtUtil;
++  private final TrialAccounts trialAccounts;
+ 
+-  public JwtAuthFilter(JwtUtil jwtUtil) {
++  public JwtAuthFilter(JwtUtil jwtUtil, TrialAccounts trialAccounts) {
+     this.jwtUtil = jwtUtil;
++    this.trialAccounts = trialAccounts;
+   }
+ 
+   @Override
+@@ -30,9 +32,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
+       String token = authHeader.substring(7);
+       if (jwtUtil.validateToken(token)) {
+         String username = jwtUtil.extractUsername(token);
+-        UsernamePasswordAuthenticationToken authentication =
+-            new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
+-        SecurityContextHolder.getContext().setAuthentication(authentication);
++        if (trialAccounts.acceptsPrincipal(username)) {
++          UsernamePasswordAuthenticationToken authentication =
++              new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
++          SecurityContextHolder.getContext().setAuthentication(authentication);
++        }
+       }
+     }
+ 
+diff --git a/backend/src/main/java/com/acme/hotel/auth/TrialAccounts.java b/backend/src/main/java/com/acme/hotel/auth/TrialAccounts.java
+new file mode 100644
+index 0000000..21c2fdb
+--- /dev/null
++++ b/backend/src/main/java/com/acme/hotel/auth/TrialAccounts.java
+@@ -0,0 +1,36 @@
++package com.acme.hotel.auth;
++
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.security.authentication.AnonymousAuthenticationToken;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContextHolder;
++import org.springframework.stereotype.Component;
++
++/** Opt-in acceptance fixture. Authority always comes from the verified principal. */
++@Component
++public class TrialAccounts {
++  private final boolean enabled;
++
++  public TrialAccounts(@Value("${app.trial-accounts.enabled:false}") boolean enabled) {
++    this.enabled = enabled;
++  }
++
++  public boolean acceptsSecondAccount(String username) {
++    return enabled && "trial-user-b".equals(username);
++  }
++
++  public boolean acceptsPrincipal(String username) {
++    return "example-user".equals(username) || acceptsSecondAccount(username);
++  }
++
++  public String currentOwner() {
++    if (!enabled) return null;
++    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
++    if (authentication == null
++        || !authentication.isAuthenticated()
++        || authentication instanceof AnonymousAuthenticationToken) {
++      throw new IllegalStateException("Authentication is required");
++    }
++    return authentication.getName();
++  }
++}
+diff --git a/backend/src/main/java/com/acme/hotel/config/SecurityConfig.java b/backend/src/main/java/com/acme/hotel/config/SecurityConfig.java
+index ebc78f4..a4af997 100644
+--- a/backend/src/main/java/com/acme/hotel/config/SecurityConfig.java
++++ b/backend/src/main/java/com/acme/hotel/config/SecurityConfig.java
+@@ -6,6 +6,7 @@ import java.util.List;
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.context.annotation.Bean;
+ import org.springframework.context.annotation.Configuration;
++import org.springframework.http.HttpMethod;
+ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+ import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+ import org.springframework.security.config.http.SessionCreationPolicy;
+@@ -36,7 +37,7 @@ public class SecurityConfig {
+             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+         .authorizeHttpRequests(
+             auth ->
+-                auth.requestMatchers("OPTIONS", "/**")
++                auth.requestMatchers(HttpMethod.OPTIONS, "/**")
+                     .permitAll()
+                     .requestMatchers("/development/token")
+                     .permitAll()
+diff --git a/backend/src/main/java/com/acme/hotel/model/Reservation.java b/backend/src/main/java/com/acme/hotel/model/Reservation.java
+index dc53955..f3274c5 100644
+--- a/backend/src/main/java/com/acme/hotel/model/Reservation.java
++++ b/backend/src/main/java/com/acme/hotel/model/Reservation.java
+@@ -28,6 +28,17 @@ public class Reservation {
+   @Column(name = "total_charge", nullable = false)
+   private double totalCharge;
+ 
++  @Column(name = "owner_account")
++  private String ownerAccount;
++
++  public String getOwnerAccount() {
++    return ownerAccount;
++  }
++
++  public void setOwnerAccount(String ownerAccount) {
++    this.ownerAccount = ownerAccount;
++  }
++
+   public Reservation() {}
+ 
+   public Reservation(
+diff --git a/backend/src/main/java/com/acme/hotel/repository/ReservationRepository.java b/backend/src/main/java/com/acme/hotel/repository/ReservationRepository.java
+index 2366973..a91738c 100644
+--- a/backend/src/main/java/com/acme/hotel/repository/ReservationRepository.java
++++ b/backend/src/main/java/com/acme/hotel/repository/ReservationRepository.java
+@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
+ @Repository
+ public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+ 
++  List<Reservation> findByOwnerAccountOrderByIdAsc(String ownerAccount);
++
+   @Query(
+       "SELECT r FROM Reservation r WHERE r.roomId = :roomId "
+           + "AND r.checkinDate < :checkoutDate AND r.checkoutDate > :checkinDate")
+diff --git a/backend/src/main/java/com/acme/hotel/service/ReservationService.java b/backend/src/main/java/com/acme/hotel/service/ReservationService.java
+index 9cb0d50..c7c33e0 100644
+--- a/backend/src/main/java/com/acme/hotel/service/ReservationService.java
++++ b/backend/src/main/java/com/acme/hotel/service/ReservationService.java
+@@ -1,5 +1,6 @@
+ package com.acme.hotel.service;
+ 
++import com.acme.hotel.auth.TrialAccounts;
+ import com.acme.hotel.model.Reservation;
+ import com.acme.hotel.model.Room;
+ import com.acme.hotel.repository.ReservationRepository;
+@@ -14,25 +15,35 @@ public class ReservationService {
+ 
+   private final ReservationRepository reservationRepository;
+   private final RoomRepository roomRepository;
++  private final TrialAccounts trialAccounts;
+ 
+   public ReservationService(
+-      ReservationRepository reservationRepository, RoomRepository roomRepository) {
++      ReservationRepository reservationRepository,
++      RoomRepository roomRepository,
++      TrialAccounts trialAccounts) {
+     this.reservationRepository = reservationRepository;
+     this.roomRepository = roomRepository;
++    this.trialAccounts = trialAccounts;
+   }
+ 
+   public List<Reservation> getAllReservations() {
+-    return reservationRepository.findAll();
++    String owner = trialAccounts.currentOwner();
++    return owner == null
++        ? reservationRepository.findAll()
++        : reservationRepository.findByOwnerAccountOrderByIdAsc(owner);
+   }
+ 
+   public Reservation getReservationById(Long id) {
++    String owner = trialAccounts.currentOwner();
+     return reservationRepository
+         .findById(id)
++        .filter(reservation -> owner == null || owner.equals(reservation.getOwnerAccount()))
+         .orElseThrow(() -> new IllegalArgumentException("Reservation not found with id: " + id));
+   }
+ 
+   public List<Reservation> createReservation(
+       String roomId, LocalDate checkinDate, LocalDate checkoutDate) {
++    String owner = trialAccounts.currentOwner();
+     // Validate check-in is in the future
+     if (!checkinDate.isAfter(LocalDate.now())) {
+       throw new IllegalArgumentException("Check-in date must be in the future");
+@@ -62,21 +73,16 @@ public class ReservationService {
+ 
+     // Save
+     Reservation reservation = new Reservation(roomId, checkinDate, checkoutDate, totalCharge);
++    reservation.setOwnerAccount(owner);
+     reservationRepository.save(reservation);
+ 
+-    return reservationRepository.findAll();
++    return getAllReservations();
+   }
+ 
+   public List<Reservation> deleteReservation(Long reservationId) {
+-    Reservation reservation =
+-        reservationRepository
+-            .findById(reservationId)
+-            .orElseThrow(
+-                () ->
+-                    new IllegalArgumentException(
+-                        "Reservation not found with id: " + reservationId));
++    Reservation reservation = getReservationById(reservationId);
+ 
+     reservationRepository.delete(reservation);
+-    return reservationRepository.findAll();
++    return getAllReservations();
+   }
+ }
+diff --git a/backend/src/main/resources/application-trial-accounts.properties b/backend/src/main/resources/application-trial-accounts.properties
+new file mode 100644
+index 0000000..95b9ade
+--- /dev/null
++++ b/backend/src/main/resources/application-trial-accounts.properties
+@@ -0,0 +1,2 @@
++# Isolated acceptance fixture only; not a production account/identity system.
++app.trial-accounts.enabled=true
+diff --git a/backend/src/test/java/com/acme/hotel/auth/DefaultAccountsHttpTest.java b/backend/src/test/java/com/acme/hotel/auth/DefaultAccountsHttpTest.java
+new file mode 100644
+index 0000000..a4f754f
+--- /dev/null
++++ b/backend/src/test/java/com/acme/hotel/auth/DefaultAccountsHttpTest.java
+@@ -0,0 +1,41 @@
++package com.acme.hotel.auth;
++
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.test.context.ActiveProfiles;
++import org.springframework.test.web.servlet.MockMvc;
++
++@SpringBootTest
++@AutoConfigureMockMvc
++@ActiveProfiles("test")
++class DefaultAccountsHttpTest {
++  @Autowired private MockMvc mvc;
++  @Autowired private JwtUtil jwt;
++
++  @Test
++  void secondAccountIsUnavailableWithoutTheExplicitTrialProfile() throws Exception {
++    mvc.perform(
++            post("/graphql")
++                .header("Authorization", "Bearer " + jwt.generateToken("trial-user-b"))
++                .contentType("application/json")
++                .content("{\"query\":\"{ getAllReservations { success } }\"}"))
++        .andExpect(status().isForbidden());
++    mvc.perform(
++            post("/development/token")
++                .param("grant_type", "password")
++                .param("username", "trial-user-b")
++                .param("password", "example-user"))
++        .andExpect(status().isUnauthorized());
++    mvc.perform(
++            post("/development/token")
++                .param("grant_type", "password")
++                .param("username", "example-user")
++                .param("password", "example-user"))
++        .andExpect(status().isOk());
++  }
++}
+diff --git a/backend/src/test/java/com/acme/hotel/auth/TrialAccountsHttpTest.java b/backend/src/test/java/com/acme/hotel/auth/TrialAccountsHttpTest.java
+new file mode 100644
+index 0000000..316c15d
+--- /dev/null
++++ b/backend/src/test/java/com/acme/hotel/auth/TrialAccountsHttpTest.java
+@@ -0,0 +1,164 @@
++package com.acme.hotel.auth;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++
++import com.acme.hotel.model.Room;
++import com.acme.hotel.repository.ReservationRepository;
++import com.acme.hotel.repository.RoomRepository;
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import java.time.LocalDate;
++import java.util.Map;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.http.MediaType;
++import org.springframework.test.context.ActiveProfiles;
++import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.test.web.servlet.MvcResult;
++
++@SpringBootTest
++@AutoConfigureMockMvc
++@ActiveProfiles({"test", "trial-accounts"})
++class TrialAccountsHttpTest {
++  @Autowired private MockMvc mvc;
++  @Autowired private ObjectMapper json;
++  @Autowired private ReservationRepository reservations;
++  @Autowired private RoomRepository rooms;
++
++  @BeforeEach
++  void seed() {
++    reservations.deleteAll();
++    rooms.save(new Room("trial_room_a", 2, false, 100, 20));
++    rooms.save(new Room("trial_room_b", 2, false, 200, 30));
++  }
++
++  String login(String account) throws Exception {
++    MvcResult result =
++        mvc.perform(
++                post("/development/token")
++                    .param("grant_type", "password")
++                    .param("username", account)
++                    .param("password", "example-user"))
++            .andExpect(status().isOk())
++            .andReturn();
++    return json.readTree(result.getResponse().getContentAsString()).get("access_token").asText();
++  }
++
++  JsonNode graphql(String token, String query) throws Exception {
++    MvcResult result =
++        mvc.perform(
++                post("/graphql")
++                    .header("Authorization", "Bearer " + token)
++                    .contentType(MediaType.APPLICATION_JSON)
++                    .content(json.writeValueAsString(Map.of("query", query))))
++            .andReturn();
++    if (result.getRequest().isAsyncStarted())
++      result = mvc.perform(asyncDispatch(result)).andReturn();
++    assertThat(result.getResponse().getStatus()).isEqualTo(200);
++    JsonNode response = json.readTree(result.getResponse().getContentAsString());
++    assertThat(response.has("errors")).isFalse();
++    return response.get("data");
++  }
++
++  String create(String room) {
++    return "mutation { createReservation(input: {room_id: \""
++        + room
++        + "\", checkin_date: \""
++        + LocalDate.now().plusDays(30)
++        + "\", checkout_date: \""
++        + LocalDate.now().plusDays(32)
++        + "\"}) { success errors reservations { id room_id } } }";
++  }
++
++  @Test
++  void verifiedPrincipalsOwnWritesAndCannotReadOrDeleteAnotherAccountsReservation()
++      throws Exception {
++    String a = login("example-user");
++    String b = login("trial-user-b");
++    JsonNode createdA = graphql(a, create("trial_room_a")).get("createReservation");
++    assertThat(createdA.get("success").asBoolean()).isTrue();
++    String idA = createdA.get("reservations").get(0).get("id").asText();
++    JsonNode overlap = graphql(b, create("trial_room_a")).get("createReservation");
++    assertThat(overlap.get("success").asBoolean()).isFalse();
++    assertThat(overlap.get("errors").get(0).asText()).contains("overlap");
++    assertThat(
++            graphql(b, "{ getAllReservations { success reservations { id } } }")
++                .get("getAllReservations")
++                .get("reservations")
++                .size())
++        .isZero();
++    assertThat(
++            graphql(b, "{ getReservation(id: \"" + idA + "\") { success errors } }")
++                .get("getReservation")
++                .get("success")
++                .asBoolean())
++        .isFalse();
++    assertThat(
++            graphql(
++                    b,
++                    "mutation { deleteReservation(reservationId: " + idA + ") { success errors } }")
++                .get("deleteReservation")
++                .get("success")
++                .asBoolean())
++        .isFalse();
++    JsonNode createdB = graphql(b, create("trial_room_b")).get("createReservation");
++    assertThat(createdB.get("reservations").size()).isEqualTo(1);
++    assertThat(createdB.get("reservations").get(0).get("room_id").asText())
++        .isEqualTo("trial_room_b");
++    assertThat(reservations.findById(Long.parseLong(idA)).orElseThrow().getOwnerAccount())
++        .isEqualTo("example-user");
++    assertThat(
++            graphql(a, "{ getAllReservations { reservations { id } } }")
++                .get("getAllReservations")
++                .get("reservations")
++                .size())
++        .isEqualTo(1);
++    assertThat(
++            graphql(
++                    a,
++                    "mutation { deleteReservation(reservationId: "
++                        + idA
++                        + ") { success reservations { id } } }")
++                .get("deleteReservation")
++                .get("reservations")
++                .size())
++        .isZero();
++    assertThat(reservations.findByOwnerAccountOrderByIdAsc("trial-user-b")).hasSize(1);
++  }
++
++  @Test
++  void graphqlRejectsAnonymousAndInvalidBearerRequestsWhilePreflightRemainsAllowed()
++      throws Exception {
++    String query = json.writeValueAsString(Map.of("query", "{ getAllRooms { success } }"));
++    mvc.perform(post("/graphql").contentType(MediaType.APPLICATION_JSON).content(query))
++        .andExpect(status().isForbidden());
++    mvc.perform(
++            post("/graphql")
++                .header("Authorization", "Bearer invalid")
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(query))
++        .andExpect(status().isForbidden());
++    mvc.perform(
++            options("/graphql")
++                .header("Origin", "http://localhost:3000")
++                .header("Access-Control-Request-Method", "POST"))
++        .andExpect(status().isOk());
++  }
++
++  @Test
++  void secondAccountStillRequiresTheCorrectDevelopmentPassword() throws Exception {
++    mvc.perform(
++            post("/development/token")
++                .param("grant_type", "password")
++                .param("username", "trial-user-b")
++                .param("password", "wrong"))
++        .andExpect(status().isUnauthorized());
++  }
++}

@@ -4,3 +4,5 @@ docs/measurements/b7-canonical-node-ab-script.txt -text whitespace=cr-at-eol,-bl
 # Unified patches require a context marker on otherwise blank lines.
 docs/trials/hotel/integration.patch whitespace=-blank-at-eol
 docs/trials/hotel/save-ownership.patch whitespace=-blank-at-eol
+docs/trials/hotel/account-fixture.patch whitespace=-blank-at-eol
+docs/trials/hotel/session-ownership.patch whitespace=-blank-at-eol
