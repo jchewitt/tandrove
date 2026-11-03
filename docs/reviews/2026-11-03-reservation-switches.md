@@ -1,0 +1,7 @@
+# Reservation account switch review
+
+A reviewer separate from the membership task checked the switch protocol, request accounting, session ownership, comparison against the authoritative row and cleanup before execution. The reviewer reconciled the primary receipt with the raw CLI output and all 100 individual ID comparisons, then ran the entire protocol independently with two fresh, account-owned bookings. Both executions passed. The [results](../trials/hotel/account-switch-results.json) preserve the observed IDs, account order, request counts and DOM sample counts.
+
+Review corrected two reporting details. The initial acquisition verifies A's ID and room. Full comparisons of ID, room and charge apply to the 100 switches. Fixture logins are excluded from the switch count. The DOM audit covers rendered states sampled after mutation batches. The [protocol and application decision](../trials/hotel/ACCOUNT-SWITCHES.md) distinguish the completed technical checks from maintainer acceptance.
+
+The independent reviewer approved the final candidate before commit after verifying both public receipts against their raw CLI results. The full parent `pnpm check` passed, including the packed Angular consumer. The reviewer confirmed signed-out UI, removal of trial listeners and zero reservations after the rerun. The trial browser, frontend, backend and dedicated database container were stopped. No listeners remained on ports 13009, 18089 or 15439.
