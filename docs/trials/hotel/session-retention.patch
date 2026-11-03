@@ -1,0 +1,377 @@
+diff --git a/frontend/src/app/app.routes.ts b/frontend/src/app/app.routes.ts
+index 5247a38..8fab1de 100644
+--- a/frontend/src/app/app.routes.ts
++++ b/frontend/src/app/app.routes.ts
+@@ -1,6 +1,6 @@
+ import { Routes } from '@angular/router';
+ 
+-export const routes: Routes = [
++const sessionRoutes: Routes = [
+   {
+     path: '',
+     redirectTo: 'home',
+@@ -40,3 +40,16 @@ export const routes: Routes = [
+       ),
+   },
+ ];
++
++// The root outlet is recreated for every auth epoch. The lazy shell owns one
++// catalog across its child routes without moving GraphQL into the initial bundle.
++export const routes: Routes = [
++  {
++    path: '',
++    loadComponent: () =>
++      import('./core/session-shell.component').then(
++        (m) => m.SessionShellComponent,
++      ),
++    children: sessionRoutes,
++  },
++];
+diff --git a/frontend/src/app/core/session-shell.component.ts b/frontend/src/app/core/session-shell.component.ts
+new file mode 100644
+index 0000000..139dcf0
+--- /dev/null
++++ b/frontend/src/app/core/session-shell.component.ts
+@@ -0,0 +1,13 @@
++import { Component } from '@angular/core';
++import { RouterOutlet } from '@angular/router';
++import { RoomCatalog } from '../tandrove/room-catalog';
++
++/** Recreated by AppComponent for every authenticated epoch, including re-login. */
++@Component({
++  selector: 'app-session-shell',
++  standalone: true,
++  imports: [RouterOutlet],
++  providers: [RoomCatalog],
++  template: '<router-outlet />',
++})
++export class SessionShellComponent {}
+diff --git a/frontend/src/app/screens/reservations/new/new-reservation.component.ts b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+index 01edb64..05aeee5 100644
+--- a/frontend/src/app/screens/reservations/new/new-reservation.component.ts
++++ b/frontend/src/app/screens/reservations/new/new-reservation.component.ts
+@@ -21,7 +21,6 @@ import {
+   selector: 'app-new-reservation',
+   standalone: true,
+   imports: [CommonModule, FormsModule, RouterLink, RoomRateComponent],
+-  providers: [RoomCatalog],
+   templateUrl: './new-reservation.component.html',
+ })
+ export class NewReservationComponent {
+diff --git a/frontend/src/app/tandrove/booking-availability.spec.ts b/frontend/src/app/tandrove/booking-availability.spec.ts
+index 2f2021c..08065f4 100644
+--- a/frontend/src/app/tandrove/booking-availability.spec.ts
++++ b/frontend/src/app/tandrove/booking-availability.spec.ts
+@@ -4,6 +4,7 @@ import { provideStore, Store } from '@ngrx/store';
+ import { Actions } from '@ngrx/effects';
+ import { Subject, of } from 'rxjs';
+ import { AuthService } from '../core/services/auth.service';
++import { RoomCatalog } from './room-catalog';
+ import { reservationReducer } from '../store/reservation/reservation.reducer';
+ import { NewReservationComponent } from '../screens/reservations/new/new-reservation.component';
+ 
+@@ -12,6 +13,7 @@ describe('Booking room availability', () => {
+     TestBed.configureTestingModule({
+       imports: [NewReservationComponent],
+       providers: [
++        RoomCatalog,
+         provideRouter([]),
+         provideStore({ reservation: reservationReducer }),
+         { provide: Actions, useValue: new Actions(new Subject()) },
+diff --git a/frontend/src/app/tandrove/booking-save.spec.ts b/frontend/src/app/tandrove/booking-save.spec.ts
+index 3a2a39f..520a1d6 100644
+--- a/frontend/src/app/tandrove/booking-save.spec.ts
++++ b/frontend/src/app/tandrove/booking-save.spec.ts
+@@ -4,6 +4,7 @@ import { provideStore, Store, Action } from '@ngrx/store';
+ import { Actions } from '@ngrx/effects';
+ import { BehaviorSubject, Subject } from 'rxjs';
+ import { AuthService } from '../core/services/auth.service';
++import { RoomCatalog } from './room-catalog';
+ import { reservationReducer } from '../store/reservation/reservation.reducer';
+ import * as actions from '../store/reservation/reservation.actions';
+ import { NewReservationComponent } from '../screens/reservations/new/new-reservation.component';
+@@ -21,6 +22,7 @@ describe('Booking save ownership', () => {
+     TestBed.configureTestingModule({
+       imports: [NewReservationComponent],
+       providers: [
++        RoomCatalog,
+         provideRouter([]),
+         provideStore({ reservation: reservationReducer }),
+         { provide: Actions, useValue: new Actions(outcomes) },
+diff --git a/frontend/src/app/tandrove/room-catalog.ts b/frontend/src/app/tandrove/room-catalog.ts
+index 6cc05b6..eab0409 100644
+--- a/frontend/src/app/tandrove/room-catalog.ts
++++ b/frontend/src/app/tandrove/room-catalog.ts
+@@ -1,6 +1,7 @@
+-import { DestroyRef, Injectable, inject } from '@angular/core';
++import { DestroyRef, Injectable, InjectionToken, inject } from '@angular/core';
+ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+ import { createGraphQLClient } from '@tandrove/graphql';
++import type { MonotonicScheduler } from '@tandrove/core';
+ import { schema } from './generated/hotel';
+ import { AuthService } from '../core/services/auth.service';
+ import { hotelTransport } from './hotel-transport';
+@@ -14,13 +15,20 @@ export const rooms = schema.field('getAllRooms').field('rooms').select({
+ });
+ export const roomRates = rooms.select({ id: true, daily_rate: true });
+ 
+-/** One client per booking component; child views own independent handles. */
++// Optional application clock; ordinary browser use keeps Tandrove's native clock.
++export const ROOM_CATALOG_CLOCK = new InjectionToken<MonotonicScheduler>(
++  'Hotel catalog clock',
++);
++
++/** One client per authenticated session; routes and child views own handles. */
+ @Injectable()
+ export class RoomCatalog {
+   private readonly auth = inject(AuthService);
+   private readonly token = this.auth.sessionToken();
+   private readonly epoch = this.auth.epoch();
++  private readonly clock = inject(ROOM_CATALOG_CLOCK, { optional: true });
+   readonly client = createGraphQLClient({
++    ...(this.clock ? { freshnessScheduler: this.clock } : {}),
+     transport: hotelTransport(
+       new URL('/graphql', location.origin).href,
+       this.requireToken(),
+@@ -28,7 +36,7 @@ export class RoomCatalog {
+     retry: { retries: 1, initialDelayMs: 100, maxDelayMs: 100 },
+     requestPolicy: {
+       requestTimeoutMs: 2000,
+-      retentionMs: 500,
++      retentionMs: 5000,
+       freshness: { staleTimeMs: 30000, revalidate: 'on-demand' },
+     },
+   });
+diff --git a/frontend/src/app/tandrove/session-retention.spec.ts b/frontend/src/app/tandrove/session-retention.spec.ts
+new file mode 100644
+index 0000000..dc32b2c
+--- /dev/null
++++ b/frontend/src/app/tandrove/session-retention.spec.ts
+@@ -0,0 +1,227 @@
++import { ComponentFixture, TestBed } from '@angular/core/testing';
++import { signal } from '@angular/core';
++import { By } from '@angular/platform-browser';
++import { provideRouter, Router } from '@angular/router';
++import { provideStore } from '@ngrx/store';
++import { Actions } from '@ngrx/effects';
++import { BehaviorSubject, Subject, of } from 'rxjs';
++import type { CancellationSignal, MonotonicScheduler } from '@tandrove/core';
++import { AppComponent } from '../app.component';
++import { routes } from '../app.routes';
++import { SessionShellComponent } from '../core/session-shell.component';
++import { AuthService, HotelSession } from '../core/services/auth.service';
++import { reservationReducer } from '../store/reservation/reservation.reducer';
++import { NewReservationComponent } from '../screens/reservations/new/new-reservation.component';
++import { ROOM_CATALOG_CLOCK, RoomCatalog, rooms } from './room-catalog';
++
++class TrialClock implements MonotonicScheduler {
++  private time = 0;
++  readonly waits = new Set<{ at: number; finish: () => void }>();
++  now = () => this.time;
++  wait(ms: number, signal: CancellationSignal): Promise<void> {
++    return new Promise((resolve, reject) => {
++      if (signal.aborted) {
++        reject(signal.reason);
++        return;
++      }
++      const entry = {
++        at: this.time + ms,
++        finish: () => {
++          stop();
++          this.waits.delete(entry);
++          resolve();
++        },
++      };
++      const stop = signal.subscribe(() => {
++        this.waits.delete(entry);
++        reject(signal.reason);
++      });
++      this.waits.add(entry);
++    });
++  }
++  advanceTo(time: number): void {
++    if (time < this.time) throw new Error('Clock cannot go backwards');
++    this.time = time;
++    for (const entry of [...this.waits]) if (entry.at <= time) entry.finish();
++  }
++}
++
++describe('Session-owned catalog with route-owned booking queries', () => {
++  let fixture: ComponentFixture<AppComponent>;
++  let router: Router;
++  let clock: TrialClock;
++  let epochs: BehaviorSubject<number>;
++  const current = signal<HotelSession | null>(null);
++  let send: jasmine.Spy;
++  beforeEach(async () => {
++    clock = new TrialClock();
++    epochs = new BehaviorSubject(0);
++    current.set({ epoch: 0, account: 'example-user', token: 'same-token' });
++    TestBed.configureTestingModule({
++      imports: [AppComponent],
++      providers: [
++        provideRouter(routes),
++        provideStore({ reservation: reservationReducer }),
++        { provide: Actions, useValue: new Actions(new Subject()) },
++        { provide: ROOM_CATALOG_CLOCK, useValue: clock },
++        {
++          provide: AuthService,
++          useValue: {
++            session: current,
++            sessionToken: () => current()?.token ?? null,
++            epoch: () => epochs.value,
++            epochChanges: epochs,
++            login: () => of({ access_token: 'same-token' }),
++          },
++        },
++      ],
++    });
++    send = spyOn(window, 'fetch').and.callFake(
++      async () =>
++        new Response(
++          JSON.stringify({
++            data: {
++              getAllRooms: {
++                __typename: 'RoomResult',
++                success: true,
++                errors: null,
++                rooms: [
++                  {
++                    __typename: 'Room',
++                    id: 'room_1',
++                    num_beds: 2,
++                    allow_smoking: false,
++                    daily_rate: 155,
++                    cleaning_fee: 99,
++                  },
++                ],
++              },
++            },
++          }),
++        ),
++    );
++    fixture = TestBed.createComponent(AppComponent);
++    fixture.detectChanges();
++    router = TestBed.inject(Router);
++    await router.navigateByUrl('/home');
++    fixture.detectChanges();
++  });
++  afterEach(() => {
++    fixture.destroy();
++    TestBed.resetTestingModule();
++    expect(clock.waits.size).toBe(0);
++  });
++  const catalog = () =>
++    fixture.debugElement
++      .query(By.directive(SessionShellComponent))
++      .injector.get(RoomCatalog);
++  const home = async () => {
++    await router.navigateByUrl('/home');
++    fixture.detectChanges();
++  };
++  const book = async () => {
++    await router.navigateByUrl('/reservations/new');
++    fixture.detectChanges();
++    const component = fixture.debugElement.query(
++      By.directive(NewReservationComponent),
++    ).componentInstance as NewReservationComponent;
++    await component.roomQuery.ensure();
++    fixture.detectChanges();
++    return component;
++  };
++  const flush = async () => {
++    for (let i = 0; i < 30; i++) await Promise.resolve();
++    fixture.detectChanges();
++  };
++
++  it('retains one session client across real routes without retaining a form draft', async () => {
++    const first = await book();
++    const owner = catalog();
++    first.formData = {
++      room_id: 'room_1',
++      checkin_date: '2027-11-01',
++      checkout_date: '2027-11-03',
++    };
++    await home();
++    expect(first.roomQuery.state().status).toBe('disposed');
++    clock.advanceTo(1000);
++    const second = await book();
++    expect(catalog()).toBe(owner);
++    expect(second).not.toBe(first);
++    expect(second.formData).toEqual({
++      room_id: '',
++      checkin_date: '',
++      checkout_date: '',
++    });
++    expect(second.roomRecords().length).toBe(1);
++    expect(send.calls.count()).toBe(1);
++  });
++
++  it('cancels old expiry on return and starts a new window on the next final departure', async () => {
++    await book();
++    await home(); // expiry at 5000
++    clock.advanceTo(4000);
++    await book();
++    clock.advanceTo(6000);
++    await flush(); // old expiry cannot evict active state
++    expect(send.calls.count()).toBe(1);
++    await home(); // new expiry at 11000
++    clock.advanceTo(10000);
++    await book();
++    expect(send.calls.count()).toBe(1);
++    await home(); // new expiry at 15000
++    clock.advanceTo(15000);
++    await flush();
++    await book();
++    expect(send.calls.count()).toBe(2);
++  });
++
++  it('revalidates original field age after a short absence spanning freshness expiry', async () => {
++    await book();
++    clock.advanceTo(29000);
++    await home();
++    clock.advanceTo(31000);
++    await book();
++    expect(send.calls.count()).toBe(2);
++  });
++
++  it('stops route polling while keeping the session client and retained data alive', async () => {
++    const first = await book();
++    const owner = catalog();
++    first.togglePolling();
++    clock.advanceTo(500);
++    await flush();
++    expect(send.calls.count()).toBe(2);
++    await home();
++    clock.advanceTo(2000);
++    await flush();
++    expect(send.calls.count()).toBe(2);
++    expect(catalog()).toBe(owner);
++    const second = await book();
++    expect(second.polling).toBeFalse();
++    clock.advanceTo(4000);
++    await flush();
++    expect(send.calls.count()).toBe(2);
++  });
++
++  it('synchronously destroys retained state on logout and isolates an identical-token new epoch', async () => {
++    await book();
++    const old = catalog();
++    await home();
++    expect(clock.waits.size).toBeGreaterThan(0);
++    current.set(null);
++    epochs.next(1);
++    expect(clock.waits.size).toBe(0);
++    expect(() =>
++      old.client.watch(
++        rooms.bind({}, { source: 'hotel-api', scope: 'booking-session-0' }),
++      ),
++    ).toThrowError('Client is disposed.');
++    fixture.detectChanges();
++    current.set({ epoch: 1, account: 'example-user', token: 'same-token' });
++    fixture.detectChanges();
++    await book();
++    expect(catalog()).not.toBe(old);
++    expect(send.calls.count()).toBe(2);
++  });
++});

@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "stages": [
+    {
+      "name": "initial-two-consumer-acquisition",
+      "roomReads": 1,
+      "elapsedMs": 225
+    },
+    {
+      "name": "fresh-route-reuse-with-blank-draft",
+      "roomReads": 0,
+      "elapsedMs": 916,
+      "inactiveMs": 645
+    },
+    {
+      "name": "old-expiry-cancelled-and-new-window-started",
+      "roomReads": 0,
+      "elapsedMs": 6543
+    },
+    {
+      "name": "inactive-expiry-reacquires",
+      "roomReads": 1,
+      "elapsedMs": 11824
+    },
+    {
+      "name": "route-departure-stops-poll-with-client-retained",
+      "roomReads": 0,
+      "elapsedMs": 14144
+    },
+    {
+      "name": "pending-read-cancelled-and-fresh-owner-isolated",
+      "roomReads": 1,
+      "elapsedMs": 14366
+    },
+    {
+      "name": "retention-does-not-renew-original-freshness",
+      "roomReads": 1,
+      "elapsedMs": 45591,
+      "ageMs": 31197,
+      "inactiveMs": 2147
+    },
+    {
+      "name": "logout-ends-retained-session-cache",
+      "roomReads": 1,
+      "elapsedMs": 50966
+    },
+    {
+      "name": "final-route-cleanup-has-no-network",
+      "roomReads": 0,
+      "elapsedMs": 56197
+    }
+  ],
+  "roomReads": 8,
+  "elapsedMs": 56197,
+  "timestamp": "2026-11-03T00:12:43.313Z"
+}

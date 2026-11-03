@@ -1,0 +1,666 @@
+{
+  "passed": true,
+  "started": 1793666118759,
+  "startedMono": 5472.200000047684,
+  "round": 50,
+  "cycles": 100,
+  "previews": 100,
+  "drafts": 100,
+  "navigations": 236,
+  "account": "trial-user-b",
+  "roomReads": 86,
+  "reservationReads": 121,
+  "creates": 3,
+  "deletes": 3,
+  "checkpoints": [
+    {
+      "round": 1,
+      "atMs": 2330,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 2
+    },
+    {
+      "round": 2,
+      "atMs": 37555,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 4
+    },
+    {
+      "round": 3,
+      "atMs": 62314,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 6
+    },
+    {
+      "round": 4,
+      "atMs": 92269,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 8
+    },
+    {
+      "round": 5,
+      "atMs": 157425,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 10
+    },
+    {
+      "round": 6,
+      "atMs": 160084,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 12
+    },
+    {
+      "round": 7,
+      "atMs": 182232,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 14
+    },
+    {
+      "round": 8,
+      "atMs": 212475,
+      "roomReads": 1,
+      "creates": 1,
+      "deletes": 1,
+      "cycles": 16
+    },
+    {
+      "round": 9,
+      "atMs": 242230,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 18
+    },
+    {
+      "round": 10,
+      "atMs": 277575,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 20
+    },
+    {
+      "round": 11,
+      "atMs": 302158,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 22
+    },
+    {
+      "round": 12,
+      "atMs": 347624,
+      "roomReads": 4,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 24
+    },
+    {
+      "round": 13,
+      "atMs": 362217,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 26
+    },
+    {
+      "round": 14,
+      "atMs": 392184,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 28
+    },
+    {
+      "round": 15,
+      "atMs": 422169,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 30
+    },
+    {
+      "round": 16,
+      "atMs": 456192,
+      "roomReads": 7,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 32
+    },
+    {
+      "round": 17,
+      "atMs": 482184,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 34
+    },
+    {
+      "round": 18,
+      "atMs": 517435,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 36
+    },
+    {
+      "round": 19,
+      "atMs": 542166,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 38
+    },
+    {
+      "round": 20,
+      "atMs": 577405,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 40
+    },
+    {
+      "round": 21,
+      "atMs": 637405,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 42
+    },
+    {
+      "round": 22,
+      "atMs": 640040,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 44
+    },
+    {
+      "round": 23,
+      "atMs": 662147,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 46
+    },
+    {
+      "round": 24,
+      "atMs": 692366,
+      "roomReads": 1,
+      "creates": 1,
+      "deletes": 1,
+      "cycles": 48
+    },
+    {
+      "round": 25,
+      "atMs": 722142,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 50
+    },
+    {
+      "round": 26,
+      "atMs": 752289,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 52
+    },
+    {
+      "round": 27,
+      "atMs": 782157,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 54
+    },
+    {
+      "round": 28,
+      "atMs": 827315,
+      "roomReads": 4,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 56
+    },
+    {
+      "round": 29,
+      "atMs": 842172,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 58
+    },
+    {
+      "round": 30,
+      "atMs": 877413,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 60
+    },
+    {
+      "round": 31,
+      "atMs": 902146,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 62
+    },
+    {
+      "round": 32,
+      "atMs": 936253,
+      "roomReads": 7,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 64
+    },
+    {
+      "round": 33,
+      "atMs": 962140,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 66
+    },
+    {
+      "round": 34,
+      "atMs": 997468,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 68
+    },
+    {
+      "round": 35,
+      "atMs": 1022136,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 70
+    },
+    {
+      "round": 36,
+      "atMs": 1052173,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 72
+    },
+    {
+      "round": 37,
+      "atMs": 1117378,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 74
+    },
+    {
+      "round": 38,
+      "atMs": 1119984,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 76
+    },
+    {
+      "round": 39,
+      "atMs": 1142117,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 78
+    },
+    {
+      "round": 40,
+      "atMs": 1177548,
+      "roomReads": 1,
+      "creates": 1,
+      "deletes": 1,
+      "cycles": 80
+    },
+    {
+      "round": 41,
+      "atMs": 1202210,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 82
+    },
+    {
+      "round": 42,
+      "atMs": 1232301,
+      "roomReads": 2,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 84
+    },
+    {
+      "round": 43,
+      "atMs": 1262147,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 86
+    },
+    {
+      "round": 44,
+      "atMs": 1307359,
+      "roomReads": 4,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 88
+    },
+    {
+      "round": 45,
+      "atMs": 1322165,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 90
+    },
+    {
+      "round": 46,
+      "atMs": 1352172,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 92
+    },
+    {
+      "round": 47,
+      "atMs": 1382144,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 94
+    },
+    {
+      "round": 48,
+      "atMs": 1416176,
+      "roomReads": 7,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 96
+    },
+    {
+      "round": 49,
+      "atMs": 1442167,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 98
+    },
+    {
+      "round": 50,
+      "atMs": 1477377,
+      "roomReads": 1,
+      "creates": 0,
+      "deletes": 0,
+      "cycles": 100
+    }
+  ],
+  "samples": [
+    {
+      "label": "warm-baseline",
+      "atMs": 0,
+      "documents": 5,
+      "nodes": 319,
+      "jsEventListeners": 79,
+      "jsHeapUsedBytes": 14697416,
+      "visibleDom": {
+        "nodes": 65,
+        "forms": 0
+      }
+    },
+    {
+      "label": "round-10",
+      "atMs": 277574,
+      "documents": 5,
+      "nodes": 320,
+      "jsEventListeners": 80,
+      "jsHeapUsedBytes": 16326104,
+      "visibleDom": {
+        "nodes": 65,
+        "forms": 0
+      }
+    },
+    {
+      "label": "round-20",
+      "atMs": 577404,
+      "documents": 5,
+      "nodes": 320,
+      "jsEventListeners": 80,
+      "jsHeapUsedBytes": 16622324,
+      "visibleDom": {
+        "nodes": 65,
+        "forms": 0
+      }
+    },
+    {
+      "label": "round-30",
+      "atMs": 877412,
+      "documents": 4,
+      "nodes": 202,
+      "jsEventListeners": 41,
+      "jsHeapUsedBytes": 9269332,
+      "visibleDom": {
+        "nodes": 65,
+        "forms": 0
+      }
+    },
+    {
+      "label": "round-40",
+      "atMs": 1177548,
+      "documents": 4,
+      "nodes": 207,
+      "jsEventListeners": 42,
+      "jsHeapUsedBytes": 9402304,
+      "visibleDom": {
+        "nodes": 68,
+        "forms": 0
+      }
+    },
+    {
+      "label": "round-50",
+      "atMs": 1477376,
+      "documents": 4,
+      "nodes": 202,
+      "jsEventListeners": 41,
+      "jsHeapUsedBytes": 9513496,
+      "visibleDom": {
+        "nodes": 65,
+        "forms": 0
+      }
+    }
+  ],
+  "visibilityCycles": [
+    {
+      "round": 5,
+      "hiddenMs": 35025,
+      "hiddenRoomReads": 0
+    },
+    {
+      "round": 21,
+      "hiddenMs": 35022,
+      "hiddenRoomReads": 0
+    },
+    {
+      "round": 37,
+      "hiddenMs": 35028,
+      "hiddenRoomReads": 0
+    }
+  ],
+  "offlineCycles": [
+    {
+      "round": 12,
+      "failedAttempts": 2,
+      "recoveryReads": 1
+    },
+    {
+      "round": 28,
+      "failedAttempts": 2,
+      "recoveryReads": 1
+    },
+    {
+      "round": 44,
+      "failedAttempts": 2,
+      "recoveryReads": 1
+    }
+  ],
+  "pollCycles": [
+    {
+      "round": 16,
+      "ticks": 6,
+      "afterDepartureReads": 0
+    },
+    {
+      "round": 32,
+      "ticks": 6,
+      "afterDepartureReads": 0
+    },
+    {
+      "round": 48,
+      "ticks": 6,
+      "afterDepartureReads": 0
+    }
+  ],
+  "bookings": [
+    {
+      "round": 8,
+      "account": "example-user",
+      "creates": 1,
+      "deletes": 1
+    },
+    {
+      "round": 24,
+      "account": "trial-user-b",
+      "creates": 1,
+      "deletes": 1
+    },
+    {
+      "round": 40,
+      "account": "example-user",
+      "creates": 1,
+      "deletes": 1
+    }
+  ],
+  "accountSwitches": [
+    {
+      "round": 10,
+      "account": "trial-user-b",
+      "roomReads": 1
+    },
+    {
+      "round": 26,
+      "account": "example-user",
+      "roomReads": 1
+    },
+    {
+      "round": 42,
+      "account": "trial-user-b",
+      "roomReads": 1
+    }
+  ],
+  "expiryCases": [
+    {
+      "round": 2,
+      "roomReads": 1
+    },
+    {
+      "round": 18,
+      "roomReads": 1
+    },
+    {
+      "round": 34,
+      "roomReads": 1
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [
+    {
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "phase": "offline",
+      "atWallMs": 332338
+    },
+    {
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "phase": "offline",
+      "atWallMs": 332449
+    },
+    {
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "phase": "offline",
+      "atWallMs": 812203
+    },
+    {
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "phase": "offline",
+      "atWallMs": 812223
+    },
+    {
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "phase": "offline",
+      "atWallMs": 1292250
+    },
+    {
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+      "phase": "offline",
+      "atWallMs": 1292263
+    }
+  ],
+  "phase": "work",
+  "openLatenciesMs": [
+    48, 40, 44, 38, 68, 47, 42, 45, 44, 45, 40, 38, 39, 48, 54, 41, 42, 38, 39,
+    42, 41, 45, 39, 41, 47, 38, 44, 43, 40, 43, 40, 41, 39, 45, 38, 42, 36, 39,
+    40, 34, 43, 39, 39, 41, 32, 42, 35, 47, 35, 37, 41, 43, 43, 32, 43, 32, 36,
+    45, 33, 45, 40, 36, 44, 42, 46, 35, 38, 40, 35, 39, 63, 49, 40, 45, 40, 36,
+    47, 40, 50, 40, 38, 40, 35, 41, 36, 40, 31, 38, 38, 37, 43, 35, 44, 41, 53,
+    41, 41, 44, 39, 40, 43, 39, 45, 37, 35, 41, 39, 41, 38, 38, 39, 45, 34, 43,
+    45, 37, 41, 40
+  ],
+  "elapsedMs": 1510052,
+  "startedAt": "2026-11-03T00:35:18.759Z",
+  "visibilityEvents": [
+    {
+      "at": 1793666241036,
+      "state": "hidden"
+    },
+    {
+      "at": 1793666276086,
+      "state": "visible"
+    },
+    {
+      "at": 1793666721026,
+      "state": "hidden"
+    },
+    {
+      "at": 1793666756075,
+      "state": "visible"
+    },
+    {
+      "at": 1793667200989,
+      "state": "hidden"
+    },
+    {
+      "at": 1793667236044,
+      "state": "visible"
+    }
+  ],
+  "finalCleanupRoomReads": 0,
+  "timestamp": "2026-11-03T01:00:28.811Z"
+}

@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "cycles": [
+    {
+      "cycle": 1,
+      "failedAttempts": 2,
+      "recoveryReads": 1
+    },
+    {
+      "cycle": 2,
+      "failedAttempts": 2,
+      "recoveryReads": 1
+    },
+    {
+      "cycle": 3,
+      "failedAttempts": 2,
+      "recoveryReads": 1
+    }
+  ],
+  "measuredRoomReads": 9,
+  "cleanupRoomReads": 0,
+  "errors": [],
+  "consoleErrors": [
+    {
+      "phase": "offline",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "phase": "offline",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "phase": "offline",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "phase": "offline",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "phase": "offline",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "phase": "offline",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    }
+  ],
+  "elapsedMs": 7119,
+  "timestamp": "2026-11-03T01:02:15.291Z"
+}
