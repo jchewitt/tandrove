@@ -2,6 +2,8 @@
 
 November 2, 2026. This completes B7b.2b.2–3 after the [save-listener fix](SAVE-OWNERSHIP.md). These are changes to the isolated hotel's authentication, NgRx commands and UI ownership. Tandrove's packages, public API and installed artifacts are unchanged; no release was needed. B7b remains open.
 
+The subsequent [work-session and cross-route retention report](WORK-SESSION.md) records the next ownership change, updated application retention policy, and additional evidence. Results and open items below describe this account/save-race slice.
+
 ## Workable slices
 
 1. **Authenticated fixture:** `account-fixture.patch` adds the explicit `trial-accounts` Spring profile and a second synthetic account. Reservation ownership is taken from the verified security principal, never from client GraphQL input. Lists, individual reads and deletion are owner-filtered. Room availability remains global so different accounts cannot double-book the same room. The original authorization/OPTIONS matcher accidentally treated `/**` as permitted for every method; it now permits only `HttpMethod.OPTIONS`. A B token is rejected when the fixture profile is disabled. Outside the profile the original single-account/shared reservation behavior is preserved. This fixture is not a production identity system or a Tandrove server implementation.

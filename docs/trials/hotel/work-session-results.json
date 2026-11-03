@@ -1,0 +1,100 @@
+{
+  "applicationBaseCommit": "07f395f7c176671a00d9060f2cc97dd85d69dc48",
+  "applicationCommit": "d3e66b190da1a04f5bf6679e79d0626b8ca9efa9",
+  "patch": "session-retention.patch",
+  "patchSha256": "57681650b50fc51f72739412adfdece4c4ea6d81ba85af8f84b6dfd473604040",
+  "artifactManifest": "artifacts.json",
+  "frontendTests": 60,
+  "policies": {
+    "retentionMs": 5000,
+    "staleTimeMs": 30000,
+    "revalidate": "on-demand",
+    "deadlineMs": 2000,
+    "additionalReadRetries": 1,
+    "maxJitterMs": 100,
+    "explicitPollEveryMs": 500
+  },
+  "initialBundleRawKb": {
+    "before": 772.01,
+    "after": 772.18
+  },
+  "homeNowLoadsSharedGraphQLChunkRawKb": 199.56,
+  "runtime": "Angular production configuration via local CLI server; HMR/live reload disabled",
+  "boundedRetentionReceipt": "retention-results.json",
+  "cliVersion": "0.1.23",
+  "browser": "Chrome 156.0.8078.76 (native binary), reduced UA 156.0.0.0; dedicated profile with Playwright CLI CDP attachment",
+  "executedProtocolSha256": {
+    "browser-work-start.js": "651f69a85d644b5aecee753872028fedbe6981fef4511950a535448f6b2e48b4",
+    "browser-work-step.js": "340893a47aa7788b3b70bb78b18c6432dc69811f85094e95e61d74667b474a5a",
+    "browser-work-status.js": "64088a81888ad1cedc85a5e1d422be958c6050ab066115c0dbb107837d409678",
+    "browser-work-finish.js": "62928e3b0685d4ecdaa2c4af37eeb1dad12159bf57b3e2c23d084564198c0d60",
+    "browser-work-abort.js": "3a64370bc5226c118d7fb06360cf2c4beb1349e332bc7edc36911e44ee8e1898",
+    "run-work-session.ps1": "ab0a59cc7d131dae0c7ae8d852f7d4116c1435c3c517d45a12b9b9e608181a17"
+  },
+  "receiptFieldLimits": [
+    "Timed receipt offlineCycles.recoveryReads is an expected value, not an individually measured/asserted delta. Aggregate roomReads and per-round roomReads are measured. The separate recovery-counts follow-up measures each recovery directly."
+  ],
+  "excludedAttempts": [
+    {
+      "name": "startup",
+      "outcome": "failed before timing/writes: CLI VM has no global performance; browser monotonic clock used after correction"
+    },
+    {
+      "deletes": 0,
+      "creates": 0,
+      "outcome": "aborted at first real-hidden-state assertion because focus emulation kept the document visible",
+      "name": "ordinary CLI browser launch",
+      "completedRounds": 4,
+      "cyclesIncludingPartialRound": 10
+    },
+    {
+      "deletes": 1,
+      "cycles": 32,
+      "creates": 1,
+      "outcome": "16 rounds passed, then intentionally aborted and cleaned up; not a 25-minute session",
+      "name": "native CDP independent preflight",
+      "completedRounds": 16
+    }
+  ],
+  "executedProtocolEncoding": {
+    "javascript": "UTF-8 without BOM, LF",
+    "powershell": "UTF-8 without BOM, CRLF"
+  },
+  "timedSessionReceipt": "work-session-run.json",
+  "postRunProtocolEdits": [
+    {
+      "file": "browser-work-start.js",
+      "reconstructExecuted": "Replace expectedRecoveryReads: 1, with recoveryReads: 1,; preserve UTF-8 without BOM and LF."
+    },
+    {
+      "file": "run-work-session.ps1",
+      "reconstructExecuted": "Replace @playwright/cli@0.1.23 with @playwright/cli and normalize line endings to CRLF, UTF-8 without BOM."
+    }
+  ],
+  "diagnostics": {
+    "medianMs": 40,
+    "minimumMs": 31,
+    "routeOpeningSamples": 118,
+    "p95NearestRankMs": 49,
+    "maximumMs": 68,
+    "interpretation": "Automation/network-inclusive timings; not a responsiveness or device budget. Six post-GC samples include a round-40 DOM count of 68 versus 65 otherwise; no object attribution or leak-free claim."
+  },
+  "status": "bounded engineering session passed; B7b in progress",
+  "measuredRecoveryReceipt": "recovery-results.json",
+  "cleanup": {
+    "databaseContainerStopped": true,
+    "frontendStopped": true,
+    "portsWithoutListeners": [13009, 18089, 15439, 19439, 19440],
+    "reservations": 0,
+    "browserProcessesExited": true,
+    "backendStopped": true
+  },
+  "launcherSmoke": {
+    "browserClosedThroughCdp": true,
+    "pinnedCliAttached": true,
+    "listenerOwnershipVerified": true,
+    "exactBrowserWebSocketConfigured": true,
+    "passed": true,
+    "pathsContainSpaces": true
+  }
+}
