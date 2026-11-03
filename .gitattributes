@@ -7,3 +7,4 @@ docs/trials/hotel/save-ownership.patch whitespace=-blank-at-eol
 docs/trials/hotel/account-fixture.patch whitespace=-blank-at-eol
 docs/trials/hotel/session-ownership.patch whitespace=-blank-at-eol
 docs/trials/hotel/session-retention.patch whitespace=-blank-at-eol
+docs/trials/hotel/reservation-membership.patch whitespace=-blank-at-eol

@@ -1,0 +1,290 @@
+diff --git a/frontend/src/app/app.routes.ts b/frontend/src/app/app.routes.ts
+index 8fab1de..afc240d 100644
+--- a/frontend/src/app/app.routes.ts
++++ b/frontend/src/app/app.routes.ts
+@@ -32,6 +32,13 @@ const sessionRoutes: Routes = [
+         (m) => m.EditReservationComponent,
+       ),
+   },
++  {
++    path: 'trial/reservation-membership',
++    loadComponent: () =>
++      import('./tandrove/reservation-membership.component').then(
++        (m) => m.ReservationMembershipComponent,
++      ),
++  },
+   {
+     path: '**',
+     loadComponent: () =>
+diff --git a/frontend/src/app/tandrove/hotel-transport.ts b/frontend/src/app/tandrove/hotel-transport.ts
+index 4d63ede..e97cf63 100644
+--- a/frontend/src/app/tandrove/hotel-transport.ts
++++ b/frontend/src/app/tandrove/hotel-transport.ts
+@@ -15,12 +15,12 @@ export function hotelTransport(
+     headers: () => ({ Authorization: `Bearer ${token}` }),
+   });
+   return async (operation, context) => {
+-    if (operation.responsePath[0] !== 'getAllRooms')
++    const root = operation.responsePath[0];
++    if (root !== 'getAllRooms' && root !== 'getAllReservations')
+       throw new Error('Unsupported hotel read.');
+     const document = visit(operation.document, {
+       Field(node) {
+-        if (node.name.value !== 'getAllRooms' || !node.selectionSet)
+-          return undefined;
++        if (node.name.value !== root || !node.selectionSet) return undefined;
+         return {
+           ...node,
+           selectionSet: {
+@@ -42,7 +42,7 @@ export function hotelTransport(
+     );
+     // Leave standard GraphQL execution errors to Tandrove's partial-result decoder.
+     if (!object(response) || !object(response['data'])) return response;
+-    const result = response['data']['getAllRooms'];
++    const result = response['data'][root];
+     if (result === null) return response;
+     if (!object(result) || typeof result['success'] !== 'boolean')
+       throw new Error('Invalid hotel result envelope.');
+@@ -51,7 +51,9 @@ export function hotelTransport(
+       throw new Error(
+         Array.isArray(errors) && typeof errors[0] === 'string'
+           ? errors[0]
+-          : 'Unable to load rooms.',
++          : root === 'getAllRooms'
++            ? 'Unable to load rooms.'
++            : 'Unable to load reservations.',
+       );
+     }
+     return response;
+diff --git a/frontend/src/app/tandrove/reservation-membership.component.spec.ts b/frontend/src/app/tandrove/reservation-membership.component.spec.ts
+new file mode 100644
+index 0000000..6f6ca7c
+--- /dev/null
++++ b/frontend/src/app/tandrove/reservation-membership.component.spec.ts
+@@ -0,0 +1,121 @@
++import { ComponentFixture, TestBed } from '@angular/core/testing';
++import { of } from 'rxjs';
++import { AuthService } from '../core/services/auth.service';
++import { ReservationMembershipComponent } from './reservation-membership.component';
++import { RoomCatalog } from './room-catalog';
++
++describe('Reservation membership view', () => {
++  const first = {
++    __typename: 'Reservation',
++    id: '1',
++    room_id: 'room_1',
++    total_charge: 409,
++  };
++  const second = { ...first, id: '2', room_id: 'room_2' };
++  let rows: (typeof first)[];
++  let businessError: string | undefined;
++  let fixture: ComponentFixture<ReservationMembershipComponent>;
++  let queries: string[];
++  const cells = () => {
++    fixture.detectChanges();
++    const root: HTMLElement = fixture.nativeElement;
++    return Array.from(
++      root.querySelectorAll('[data-testid="reservation-row"]'),
++      (row) =>
++        Array.from(row.querySelectorAll('td'), (cell) =>
++          cell.textContent!.trim(),
++        ),
++    );
++  };
++  const stale = () =>
++    fixture.nativeElement
++      .querySelector('[data-testid="membership-stale"]')
++      .textContent.trim();
++
++  beforeEach(async () => {
++    rows = [first];
++    queries = [];
++    businessError = undefined;
++    TestBed.configureTestingModule({
++      imports: [ReservationMembershipComponent],
++      providers: [
++        RoomCatalog,
++        {
++          provide: AuthService,
++          useValue: {
++            sessionToken: () => 'fixture-token',
++            epoch: () => 1,
++            epochChanges: of(1),
++          },
++        },
++      ],
++    });
++    spyOn(window, 'fetch').and.callFake(async (request) => {
++      const { query } = await (request as Request).json();
++      queries.push(query);
++      return new Response(
++        JSON.stringify({
++          data: {
++            getAllReservations: {
++              __typename: 'ReservationResult',
++              success: !businessError,
++              errors: businessError ? [businessError] : null,
++              reservations: rows,
++            },
++          },
++        }),
++      );
++    });
++    fixture = TestBed.createComponent(ReservationMembershipComponent);
++    fixture.detectChanges();
++    await fixture.componentInstance.query.ensure();
++  });
++
++  it('adopts inserted and removed rows only on list refresh, and keeps field refresh narrow', async () => {
++    expect(cells()).toEqual([['1', 'room_1', '409']]);
++    expect(stale()).toBe('false');
++    rows = [second, { ...first, room_id: 'changed', total_charge: 450 }];
++    await fixture.componentInstance.refreshCharges();
++    expect(cells()).toEqual([['1', 'room_1', '450']]);
++    expect(stale()).toBe('true');
++    const narrow = queries[queries.length - 1];
++    expect(narrow).toContain('total_charge');
++    expect(narrow).toMatch(/\bid\b/);
++    expect(narrow).toContain('success');
++    expect(narrow).toContain('errors');
++    expect(narrow).not.toContain('room_id');
++    await fixture.componentInstance.refreshList();
++    expect(cells()).toEqual([
++      ['2', 'room_2', '409'],
++      ['1', 'changed', '450'],
++    ]);
++    expect(stale()).toBe('false');
++    rows = [second];
++    await fixture.componentInstance.refreshCharges();
++    expect(cells()).toEqual([
++      ['2', 'room_2', '409'],
++      ['1', 'changed', '450'],
++    ]);
++    expect(stale()).toBe('true');
++    await fixture.componentInstance.refreshList();
++    expect(cells()).toEqual([['2', 'room_2', '409']]);
++    expect(stale()).toBe('false');
++  });
++
++  it('shows an in-band reservation error alongside cached rows until recovery', async () => {
++    expect(cells()).toEqual([['1', 'room_1', '409']]);
++    businessError = 'Reservations unavailable';
++    rows = [];
++    await fixture.componentInstance.refreshList();
++    expect(cells()).toEqual([['1', 'room_1', '409']]);
++    expect(
++      fixture.nativeElement.querySelector('[role="alert"]').textContent,
++    ).toContain(businessError);
++    expect(fixture.componentInstance.view().status).toBe('Unavailable');
++    businessError = undefined;
++    await fixture.componentInstance.refreshList();
++    expect(cells()).toEqual([]);
++    expect(fixture.componentInstance.view().status).toBe('Ready');
++    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
++  });
++});
+diff --git a/frontend/src/app/tandrove/reservation-membership.component.ts b/frontend/src/app/tandrove/reservation-membership.component.ts
+new file mode 100644
+index 0000000..5215229
+--- /dev/null
++++ b/frontend/src/app/tandrove/reservation-membership.component.ts
+@@ -0,0 +1,99 @@
++import { Component, computed, inject } from '@angular/core';
++import { injectStateQuery } from '@tandrove/angular';
++import { schema } from './generated/hotel';
++import { RoomCatalog } from './room-catalog';
++
++const reservations = schema
++  .field('getAllReservations')
++  .field('reservations')
++  .select({ id: true, room_id: true, total_charge: true });
++
++@Component({
++  selector: 'app-reservation-membership',
++  standalone: true,
++  template: `
++    <h1>Reservation membership</h1>
++    <p>
++      Status: <span data-testid="reservation-state">{{ view().status }}</span>
++    </p>
++    <p>
++      Membership stale:
++      <span data-testid="membership-stale">{{ view().membershipStale }}</span>
++    </p>
++    @if (view().error) {
++      <p role="alert">{{ view().error }}</p>
++    }
++    <table>
++      <caption>
++        Cached reservations
++      </caption>
++      <thead>
++        <tr>
++          <th>ID</th>
++          <th>Room</th>
++          <th>Total charge</th>
++        </tr>
++      </thead>
++      <tbody>
++        @for (record of view().records; track record.data.id) {
++          <tr data-testid="reservation-row">
++            <td>{{ record.data.id }}</td>
++            <td>{{ record.data.room_id ?? 'Unavailable' }}</td>
++            <td>{{ record.data.total_charge ?? 'Unavailable' }}</td>
++          </tr>
++        }
++      </tbody>
++    </table>
++    <button
++      type="button"
++      [disabled]="!view().canRefresh"
++      (click)="refreshCharges()"
++    >
++      Refresh reservation charges
++    </button>
++    <button
++      type="button"
++      [disabled]="!view().canRefresh"
++      (click)="refreshList()"
++    >
++      Refresh reservation list
++    </button>
++  `,
++})
++export class ReservationMembershipComponent {
++  private readonly catalog = inject(RoomCatalog);
++  readonly query = injectStateQuery(
++    () => reservations.bind({}, this.catalog.binding()),
++    (definition) => this.catalog.client.watch(definition),
++  );
++  readonly view = computed(() => {
++    const state = this.query.state();
++    const snapshot = state.status === 'active' ? state.snapshot : undefined;
++    const loading = state.status === 'pending' || snapshot?.fetching;
++    const error =
++      state.status === 'error'
++        ? String(state.error)
++        : snapshot?.error ||
++          snapshot?.resourceError ||
++          snapshot?.records
++            ?.flatMap((record) => record.fields)
++            .find((field) => field.error)?.error;
++    const available = snapshot?.records && snapshot.complete && !error;
++    return {
++      status: loading ? 'Loading' : available ? 'Ready' : 'Unavailable',
++      records: snapshot?.records ?? [],
++      membershipStale: snapshot?.records ? snapshot.membershipStale : 'unknown',
++      canRefresh: state.status === 'active' && !loading,
++      error,
++    };
++  });
++
++  async refreshCharges(): Promise<void> {
++    // The active query exposes failures in its snapshot alongside cached rows.
++    await this.query.invalidate('total_charge').catch(() => undefined);
++  }
++
++  async refreshList(): Promise<void> {
++    await this.query.refreshList().catch(() => undefined);
++  }
++}

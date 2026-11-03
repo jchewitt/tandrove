@@ -1,0 +1,90 @@
+{
+  "applicationCommit": "6439dbc143e63956124f5222f11b9f0d575db62d",
+  "patchSha256": "50978d7aa2de9b9b892b869c27095763d6237524ddd55e27aa993b8273c251cc",
+  "primary": {
+    "passed": true,
+    "baselineId": "17",
+    "targetId": "18",
+    "stages": [
+      {
+        "name": "charge refresh after booking",
+        "serverIds": ["17", "18"],
+        "cachedIds": ["17"],
+        "membershipStale": true,
+        "status": "Ready",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      },
+      {
+        "name": "list refresh after booking",
+        "serverIds": ["17", "18"],
+        "cachedIds": ["17", "18"],
+        "membershipStale": false,
+        "status": "Ready",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      room_id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      },
+      {
+        "name": "charge refresh after cancellation",
+        "serverIds": ["17"],
+        "cachedIds": ["17", "18"],
+        "membershipStale": true,
+        "status": "Unavailable",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      },
+      {
+        "name": "list refresh after cancellation",
+        "serverIds": ["17"],
+        "cachedIds": ["17"],
+        "membershipStale": false,
+        "status": "Ready",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      room_id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      }
+    ],
+    "reservationReads": 5,
+    "writes": ["create", "create", "delete", "delete"],
+    "pageErrors": [],
+    "timestamp": "2026-11-03T20:11:17.828Z"
+  },
+  "independent": {
+    "passed": true,
+    "baselineId": "19",
+    "targetId": "20",
+    "stages": [
+      {
+        "name": "charge refresh after booking",
+        "serverIds": ["19", "20"],
+        "cachedIds": ["19"],
+        "membershipStale": true,
+        "status": "Ready",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      },
+      {
+        "name": "list refresh after booking",
+        "serverIds": ["19", "20"],
+        "cachedIds": ["19", "20"],
+        "membershipStale": false,
+        "status": "Ready",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      room_id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      },
+      {
+        "name": "charge refresh after cancellation",
+        "serverIds": ["19"],
+        "cachedIds": ["19", "20"],
+        "membershipStale": true,
+        "status": "Unavailable",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      },
+      {
+        "name": "list refresh after cancellation",
+        "serverIds": ["19"],
+        "cachedIds": ["19"],
+        "membershipStale": false,
+        "status": "Ready",
+        "query": "query TandroveRead {\n  getAllReservations {\n    __typename\n    reservations {\n      __typename\n      id\n      room_id\n      total_charge\n    }\n    success\n    errors\n  }\n}"
+      }
+    ],
+    "reservationReads": 5,
+    "writes": ["create", "create", "delete", "delete"],
+    "pageErrors": [],
+    "timestamp": "2026-11-03T20:12:04.176Z"
+  }
+}
