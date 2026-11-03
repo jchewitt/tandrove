@@ -23,4 +23,6 @@ The hotel's GraphQL API supports two writes, creating and cancelling a reservati
 
 The [application trial protocol](../../APPLICATION-TRIAL.md#trial-report-and-exit-decision) requires the application maintainer and independent reviewer to reach a joint conclusion. The remaining choice is whether to accept this workload with the room-edit limitation documented or require a real edit through an existing application command before acceptance. In the latter case, the next check should save a changed field, confirm the command, invalidate just that field and compare both consumers, cached siblings and dirty drafts.
 
-B7b.2b.4e and B7b remain open pending a decision from the maintainer responsible for the isolated integration. Acceptance here would apply only to this trial. B7c performance and device measurements and B7d base-client readiness have their own decisions.
+On November 3, 2026, the Tandrove project owner confirmed that another application maintainer must decide. The deciding maintainer's name and verdict are pending. Record their decision here with its date, the scope they accept or the additional field-edit evidence they require.
+
+B7b.2b.4e and B7b remain open pending that decision. Acceptance here would apply only to this trial. B7c performance and device measurements and B7d base-client readiness have their own decisions.
