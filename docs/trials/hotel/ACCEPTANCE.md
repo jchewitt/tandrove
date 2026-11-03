@@ -1,0 +1,26 @@
+# Hotel trial acceptance decision
+
+**November 3, 2026. The independent reviewer recommends accepting the isolated hotel integration for room reads, booking and cancellation. The application maintainer's decision is pending.**
+
+The decision covers the [reviewed local Tandrove artifacts](artifacts.json) in the Angular/Spring/PostgreSQL hotel integration at application commit `6439dbc143e63956124f5222f11b9f0d575db62d`. The exercised flows had two room consumers, form-local drafts and application-owned writes.
+
+### Room-rate coverage
+
+The original test changed three values for one room in the isolated database. A rate refresh asked GraphQL for the room ID and daily rate, along with type and response-envelope fields. Both consumers showed the rate change from 140 to 155. The selector kept the cached bed count of 2 and cleaning fee of 20, and the booking dates stayed in the form. A full catalog reload then adopted the new bed count of 3 and fee of 99. This verifies selective refresh after an authoritative data change. [Initial report and captured query](README.md#executed-evidence)
+
+The hotel's GraphQL API supports two writes, creating and cancelling a reservation. Its room service only lists rooms. The database update bypassed any room-edit command, so the test supplies no evidence about authorization, validation, commit acknowledgement or refresh triggered by such a command. The reviewer's recommendation is to retain that case as a follow-up for an application with an existing field-edit workflow. [Upstream schema](https://github.com/WillSams/example-ts-angular-with-java/blob/3ebd6536c4fc3c47482089d747917beed6802873/backend/src/main/resources/graphql/schema.graphqls), [room service](https://github.com/WillSams/example-ts-angular-with-java/blob/3ebd6536c4fc3c47482089d747917beed6802873/backend/src/main/java/com/acme/hotel/service/RoomService.java)
+
+### Evidence for the tested workflow
+
+| Question                                      | Result                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| What happens after a real write?              | After booking and cancellation, a charge refresh kept cached membership and reported the mismatch. An explicit list refresh adopted the server's ordered rows. A second run independently reproduced both transitions. A changed server order was covered in an application component test. [Membership report](RESERVATION-MEMBERSHIP.md)                                                       |
+| Can an earlier session overwrite a later one? | The trial exercised delayed logins, reads, polls, retries and save completions. Across two runs of 100 switches each, every switch returned and rendered only the active account's reservation. Each run recorded zero mismatches in 302 DOM samples. The setup used two synthetic accounts. [Race checks](ACCOUNT-RACES.md), [switch receipts](account-switch-results.json)                     |
+| Do drafts survive asynchronous work?          | The create form preserved later edits while a save acknowledgement was pending. The hotel's create-only workflow did not exercise conflict resolution or reset on an existing editable server field. Those cases have separate billing-demo coverage. [Save ownership](SAVE-OWNERSHIP.md), [forms contract](../../FORMS.md)                                                                      |
+| Do reads and handles recover and clean up?    | The 25m10s scripted desktop session exercised 100 route/preview cycles, real background intervals, offline recovery and polling. Route retention and logout cleanup passed. Fault cases included injected responses and component-level partial-data checks. Device budgets and larger workloads belong to B7c. [Session report](WORK-SESSION.md), [fault evidence](README.md#executed-evidence) |
+
+### Maintainer decision
+
+The [application trial protocol](../../APPLICATION-TRIAL.md#trial-report-and-exit-decision) requires the application maintainer and independent reviewer to reach a joint conclusion. The remaining choice is whether to accept this workload with the room-edit limitation documented or require a real edit through an existing application command before acceptance. In the latter case, the next check should save a changed field, confirm the command, invalidate just that field and compare both consumers, cached siblings and dirty drafts.
+
+B7b.2b.4e and B7b remain open pending a decision from the maintainer responsible for the isolated integration. Acceptance here would apply only to this trial. B7c performance and device measurements and B7d base-client readiness have their own decisions.
