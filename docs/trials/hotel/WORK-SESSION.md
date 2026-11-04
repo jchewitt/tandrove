@@ -1,6 +1,6 @@
 # Hotel work-session and cross-route retention trial
 
-November 2, 2026 (America/Chicago). This follow-up uses the isolated application and exact local packages from the [account/save-race trial](ACCOUNT-RACES.md). It changes application ownership, not Tandrove's runtime/API, and requires no npm release. The timed workload is a scripted engineering session, not an upstream-maintainer endorsement or an ordinary-user study.
+November 2, 2026 (America/Chicago). This follow-up uses the isolated application and exact local packages from the [account/save-race trial](ACCOUNT-RACES.md). It changes application ownership, not Tandrove's runtime/API, and requires no npm release. The timed workload is a scripted engineering session, not an upstream-maintainer endorsement or an ordinary-user study. Status statements below describe that run. The [November 4 technical conclusion](ACCEPTANCE.md) supersedes its pending status and maintainer requirement, closing B7b for the bounded library test scope.
 
 **Bounded engineering session: PASSED. B7b: IN PROGRESS.** The real-clock retention checks and a 25-minute scripted session passed. Final application acceptance and the broader performance/device/readiness gates remain open.
 

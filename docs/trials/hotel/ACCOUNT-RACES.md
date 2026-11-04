@@ -1,6 +1,6 @@
 # Hotel account and save races
 
-November 2, 2026. This completes B7b.2b.2–3 after the [save-listener fix](SAVE-OWNERSHIP.md). These are changes to the isolated hotel's authentication, NgRx commands and UI ownership. Tandrove's packages, public API and installed artifacts are unchanged; no release was needed. B7b remains open.
+November 2, 2026. This completes B7b.2b.2–3 after the [save-listener fix](SAVE-OWNERSHIP.md). These are changes to the isolated hotel's authentication, NgRx commands and UI ownership. Tandrove's packages, public API and installed artifacts are unchanged; no release was needed. B7b was still open at this stage. The [November 4 technical conclusion](ACCEPTANCE.md) supersedes the pending statuses and maintainer requirement below, closing B7b for the bounded library test scope.
 
 The subsequent [work-session and cross-route retention report](WORK-SESSION.md) records the next ownership change, updated application retention policy, and additional evidence. Results and open items below describe this account/save-race slice.
 

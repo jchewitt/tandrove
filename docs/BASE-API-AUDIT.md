@@ -1,6 +1,6 @@
 # Base-client API and readiness audit
 
-**B7d status: OPEN — preliminary repository audit, October 23, 2026.** This records the implemented surface and known evidence; it does not declare beta stability or authorize extensions/publication. B7b still needs an existing application and executed [trial](APPLICATION-TRIAL.md). B7c must supply scale, browser-memory and lower-powered-environment evidence before the final decision.
+**B7d status: OPEN — preliminary repository audit, October 23, 2026, with trial status updated November 4.** This records the implemented surface and known evidence; it does not declare beta stability or authorize extensions/publication. B7b's [bounded existing-application trial](trials/hotel/ACCEPTANCE.md) is complete. B7c must supply scale, browser-memory and lower-powered-environment evidence before the final decision.
 
 The reviewed B7a baseline passed 403 tests, 25 browser scenarios and isolated JavaScript/TypeScript/Angular consumers; see its [review record](reviews/2026-10-22-typed-snapshots.md). Those results cover the repository fixtures, not an arbitrary real application. The recorded published release is alpha.5; provider registration/assignment, polling and inferred snapshots are implemented on main and queued for a batched release. Use commit/hash-identified tarballs when evaluating those additions.
 
@@ -56,9 +56,9 @@ This slice corrects stale guide claims that runtime data was only untyped JSON a
 
 The initial [scale/lifecycle baseline](PERFORMANCE.md) now records PERF-01: large-list refresh latency requires a separately reviewed profiling/fix task and a rerun. The bounded browser heap results and CPU-throttled profile are useful evidence, but do not supply a real application or physical lower-powered-device result.
 
-The final reviewer must record evidence for each open gate:
+The final reviewer must reconcile the completed trial with the remaining gates:
 
-- **B7b:** a compatible existing application's executed scenario/report, with resolved critical correctness findings. Application selection and results remain outstanding.
+- **B7b, complete for its bounded scope:** the [hotel test-harness evidence and technical conclusion](trials/hotel/ACCEPTANCE.md) record the executed scenarios, reviewed correctness fixes and coverage limits. A room edit through an existing business command remains untested in that application. Consider this limit in the final readiness assessment without reopening the superseded application-maintainer approval requirement.
 - **B7c:** reproducible schema/record/lifecycle and browser-memory measurements, actual environment metadata, justified budgets and lower-powered-environment evidence. A synthetic Node measurement alone is insufficient. Optimize compiled planning only if measurements identify it as worthwhile.
 - **B7d / AX2–AX4:** reconcile documentation with the final candidate, classify supported versus provisional exports, review migration impact and diagnostic usability, and verify installed JS/TS/Angular consumers after any resulting changes. Record whether the base can support the extension phase, with explicit limits and unresolved findings.
 - **AX5 / stable:** separately review beta/stable release policy and compatibility/deprecation commitments. Existing scripts intentionally accept alpha; merging feature work or this audit does not authorize a version/channel change or merging the batched release PR.

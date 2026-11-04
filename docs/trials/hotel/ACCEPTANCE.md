@@ -1,6 +1,6 @@
 # Hotel trial acceptance decision
 
-**November 3, 2026. The independent reviewer recommends accepting the isolated hotel integration for room reads, booking and cancellation. The application maintainer's decision is pending.**
+**November 4, 2026. B7b PASSED for the bounded Tandrove integration trial.** The hotel application is a test harness for the state-management library. Acceptance concerns the library behavior exercised by the tests, not operating a hotel or obtaining a hotel application's owner's approval.
 
 The decision covers the [reviewed local Tandrove artifacts](artifacts.json) in the Angular/Spring/PostgreSQL hotel integration at application commit `6439dbc143e63956124f5222f11b9f0d575db62d`. The exercised flows had two room consumers, form-local drafts and application-owned writes.
 
@@ -19,10 +19,12 @@ The hotel's GraphQL API supports two writes, creating and cancelling a reservati
 | Do drafts survive asynchronous work?          | The create form preserved later edits while a save acknowledgement was pending. The hotel's create-only workflow did not exercise conflict resolution or reset on an existing editable server field. Those cases have separate billing-demo coverage. [Save ownership](SAVE-OWNERSHIP.md), [forms contract](../../FORMS.md)                                                                      |
 | Do reads and handles recover and clean up?    | The 25m10s scripted desktop session exercised 100 route/preview cycles, real background intervals, offline recovery and polling. Route retention and logout cleanup passed. Fault cases included injected responses and component-level partial-data checks. Device budgets and larger workloads belong to B7c. [Session report](WORK-SESSION.md), [fault evidence](README.md#executed-evidence) |
 
-### Maintainer decision
+### Technical trial conclusion
 
-The [application trial protocol](../../APPLICATION-TRIAL.md#trial-report-and-exit-decision) requires the application maintainer and independent reviewer to reach a joint conclusion. The remaining choice is whether to accept this workload with the room-edit limitation documented or require a real edit through an existing application command before acceptance. In the latter case, the next check should save a changed field, confirm the command, invalidate just that field and compare both consumers, cached siblings and dirty drafts.
+The executed evidence and independently reviewed fixes support accepting this bounded library integration. The checks cover selective cache updates, shared consumers, explicit list reconciliation after writes, account isolation, local drafts, route retention, recovery and cleanup. Booking and cancellation are test inputs that change server data and exercise those behaviors.
 
-On November 3, 2026, the Tandrove project owner confirmed that another application maintainer must decide. The deciding role is the **application team member responsible for the isolated hotel integration**. That person judges whether the tested workflows cover enough of the application's needs. Their name and verdict are pending. Record their decision here with its date, the scope they accept or the additional field-edit evidence they require.
+The user clarified the test-harness purpose on November 4. The earlier application-team-member handoff was an unnecessary requirement introduced by the trial documentation and is superseded. No separate application maintainer or upstream endorsement is required. Independent technical review remains required under the [trial protocol](../../APPLICATION-TRIAL.md#trial-report-and-exit-decision).
 
-B7b.2b.4e and B7b remain open pending that decision. Acceptance here would apply only to this trial. B7c performance and device measurements and B7d base-client readiness have their own decisions.
+The room-edit command path remains untested in this application because no such command exists. Keep it as a documented coverage limit and a follow-up when a compatible field-edit workflow is available. A future check should save a changed field through that command, confirm the save, invalidate just that field and compare both consumers, cached siblings and dirty drafts. The SQL check above does not establish that command path. It is not necessary to build hotel business features to close this trial.
+
+B7b.2b.4e and its B7b parent tasks are complete for this tested scope. B7c performance, memory and device work and B7d base-client readiness remain open. This conclusion does not establish production suitability, complete mutation/form coverage, beta readiness or authorization to publish. See the [independent scope review](../../reviews/2026-11-04-hotel-trial-scope.md).

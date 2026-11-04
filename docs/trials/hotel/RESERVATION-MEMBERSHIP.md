@@ -22,6 +22,6 @@ npx --yes --package @playwright/cli@0.1.23 playwright-cli -s=hotel-acceptance ru
 npx --yes --package @playwright/cli@0.1.23 playwright-cli -s=hotel-acceptance run-code --filename docs/trials/hotel/browser-reservation-membership.js
 ```
 
-This covers membership after real application writes. The separate room-edit business workflow and the application-maintainer acceptance decision remain open.
+This covers membership after real application writes. The [November 4 technical conclusion](ACCEPTANCE.md) accepts the bounded library test scope and removes the unnecessary application-maintainer approval requirement. A room edit through a business command remains untested in this application.
 
 Both the primary execution and independent rerun passed. The [two receipts](reservation-membership-results.json) preserve the actual server IDs, cached IDs, queries and command counts for each run. The independent run used reservations 19 and 20, confirmed the missing-record alert on cancellation and verified zero remaining reservations, no observer rows after logout and no remaining trial listeners. See the [independent review](../../reviews/2026-11-03-reservation-membership.md).
