@@ -1,6 +1,6 @@
 # Existing hotel application trial
 
-Follow-up reports cover [save-listener ownership](SAVE-OWNERSHIP.md), [authenticated account/save races](ACCOUNT-RACES.md), [work-session/cross-route retention](WORK-SESSION.md), [reservation membership after writes](RESERVATION-MEMBERSHIP.md) and [100 account switches](ACCOUNT-SWITCHES.md). The findings below describe the initial trial. The follow-up reports record subsequent fixes, executed checks and remaining acceptance decisions.
+Follow-up reports cover [save-listener ownership](SAVE-OWNERSHIP.md), [authenticated account/save races](ACCOUNT-RACES.md), [work-session/cross-route retention](WORK-SESSION.md), [reservation membership after writes](RESERVATION-MEMBERSHIP.md) and [100 account switches](ACCOUNT-SWITCHES.md). The findings below describe the initial November 2 trial. For current status, see the [November 4 technical conclusion](ACCEPTANCE.md), which closes B7b for the bounded library test scope. The earlier statuses and maintainer requirement below are historical and superseded by that conclusion.
 
 November 2, 2026. **The room-read integration passed this bounded trial; B7b remains in progress.** No library runtime changes or npm publication were needed. The integration lives in an isolated worktree; the upstream application and active user projects were not modified.
 
