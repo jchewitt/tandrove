@@ -1,0 +1,9 @@
+# Store projection provenance experiment
+
+November 5, 2026. B7c.2f evaluated avoiding repeated projection copying through the existing validated-input provenance. The candidate was rejected; the delivered change records evidence and the next task without changing library runtime or package versions.
+
+The independent `projection_review` agent audited ownership, canonical ordering, integer-like and aliased keys, partial/null/error states, array/prototype hooks and reentrant publication. It passed 37 targeted tests and compared 39,000 generated actions with the parent across 74,641 matching observations, including the internal equality strings used by handles. The implementation agent passed all 236 core tests. No actionable correctness finding remained.
+
+The reviewer recommended rejecting the candidate after the full measurement and same-session Node comparison showed modest/mixed benefits alongside about 1.06 MB additional warmed/released heap. Browser timing differences were not independently isolated. The [performance report](../PERFORMANCE.md#november-5-projection-provenance-experiment-rejected) preserves the raw measurements, reproduction patch and exact diagnostic script. B7c.2f is a completed investigation, not a resolved performance defect. PERF-01, B7c.2g, B7c.3 and B7d remain open.
+
+`pnpm check` passed on the restored runtime, including formatting, build, schema drift, type checks, tests and isolated packed JavaScript/TypeScript/Angular consumers. Review requested preserving the archived diagnostic script's exact bytes through Git attributes; that correction also retains the patch's required blank context markers. The reviewer reconstructed the patch on the recorded parent with its LF policy and verified the candidate source/runtime hashes, exact script and diagnostic bundle hashes, 264 formal statistic groups and 192 diagnostic groups. Final formatting/diff checks passed. Hosted CI gates merge. No publication is requested.

@@ -1,0 +1,265 @@
+diff --git a/packages/core/src/definition.ts b/packages/core/src/definition.ts
+index 74c4057..1844e9d 100644
+--- a/packages/core/src/definition.ts
++++ b/packages/core/src/definition.ts
+@@ -23,6 +23,37 @@ export interface ResourceScope {
+ // null means owned but not yet serialized; a string is its cached encoding.
+ const reusableInputs = new WeakMap<object, string | null>();
+ 
++/** Internal construction only; never registers caller-owned objects as trusted. */
++export function assembleInputObject(
++  populate: (put: (key: string, value: InputValue) => void) => void,
++): InputObject {
++  const result: Record<string, InputValue> = Object.create(null) as Record<
++    string,
++    InputValue
++  >;
++  let reusable = true;
++  let previous: string | undefined;
++  populate((key, value) => {
++    result[key] = value;
++    // Preserve insertion order. Aliases in noncanonical order simply retain
++    // the ordinary validating/copying path, as do arrays and their ancestors.
++    reusable &&=
++      typeof key === 'string' &&
++      (previous === undefined || previous <= key) &&
++      (value === null ||
++        typeof value === 'string' ||
++        typeof value === 'boolean' ||
++        (typeof value === 'number' &&
++          Number.isFinite(value) &&
++          !Object.is(value, -0)) ||
++        (typeof value === 'object' && reusableInputs.has(value)));
++    previous = key;
++  });
++  Object.freeze(result);
++  if (reusable) reusableInputs.set(result, null);
++  return result;
++}
++
+ /**
+  * Snapshot JSON-shaped inputs; omit undefined object properties, never array items.
+  * Already validated immutable objects may be reused; copy identity is unspecified.
+diff --git a/packages/core/src/state-store.ts b/packages/core/src/state-store.ts
+index bac4276..b2dde81 100644
+--- a/packages/core/src/state-store.ts
++++ b/packages/core/src/state-store.ts
+@@ -1,4 +1,5 @@
+ import {
++  assembleInputObject,
+   canonicalInput,
+   freezeFields,
+   snapshotInput,
+@@ -173,38 +174,35 @@ function projectRecord(
+     fields: readonly ProjectionField[],
+     inheritedError?: string,
+   ): InputObject {
+-    const result: Record<string, InputValue> = Object.create(null) as Record<
+-      string,
+-      InputValue
+-    >;
+-    for (const field of fields) {
+-      const cell = record.cells.get(field.cellKey);
+-      const present = cell !== undefined && cell.kind !== 'missing';
+-      const stale = !present || cell!.stale;
+-      // Branch failures are materialized on existing descendants at commit time.
+-      // A later successful child write can therefore recover independently.
+-      const error = cell?.error ?? (present ? undefined : inheritedError);
+-      if (field.children.length && cell?.kind === 'object') {
+-        result[field.responseName] = project(field.children, error);
+-      } else {
+-        // A structural null is visible as null, never as old cached descendants.
+-        const compatible =
+-          present &&
+-          cell!.kind === 'value' &&
+-          (!field.children.length || cell!.value === null);
+-        if (compatible) result[field.responseName] = cell!.value!;
+-        statuses.push(
+-          Object.freeze({
+-            path: field.responsePath,
+-            present: compatible,
+-            stale: stale || !compatible,
+-            ...(error === undefined ? {} : { error }),
+-          }),
+-        );
+-        descendantMetadata(field.children);
++    return assembleInputObject((put) => {
++      for (const field of fields) {
++        const cell = record.cells.get(field.cellKey);
++        const present = cell !== undefined && cell.kind !== 'missing';
++        const stale = !present || cell!.stale;
++        // Branch failures are materialized on existing descendants at commit time.
++        // A later successful child write can therefore recover independently.
++        const error = cell?.error ?? (present ? undefined : inheritedError);
++        if (field.children.length && cell?.kind === 'object') {
++          put(field.responseName, project(field.children, error));
++        } else {
++          // A structural null is visible as null, never as old cached descendants.
++          const compatible =
++            present &&
++            cell!.kind === 'value' &&
++            (!field.children.length || cell!.value === null);
++          if (compatible) put(field.responseName, cell!.value!);
++          statuses.push(
++            Object.freeze({
++              path: field.responsePath,
++              present: compatible,
++              stale: stale || !compatible,
++              ...(error === undefined ? {} : { error }),
++            }),
++          );
++          descendantMetadata(field.children);
++        }
+       }
+-    }
+-    return Object.freeze(result);
++    });
+   }
+   const data = project(selection);
+   return Object.freeze({
+diff --git a/packages/core/test/projection-input.test.mjs b/packages/core/test/projection-input.test.mjs
+new file mode 100644
+index 0000000..ce0d918
+--- /dev/null
++++ b/packages/core/test/projection-input.test.mjs
+@@ -0,0 +1,140 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { StateStore, canonicalInput, snapshotInput } from '../dist/index.js';
++import * as publicApi from '../dist/index.js';
++
++const field = (name, responseName = name, children = []) => ({
++  name,
++  responseName,
++  arguments: {},
++  children,
++});
++const write = (name, value) => ({
++  kind: 'write',
++  record: { id: 1 },
++  path: [{ name, arguments: {} }],
++  value,
++});
++function setup(selection, changes) {
++  const store = new StateStore();
++  const view = store.watch('test', selection);
++  store.commit('test', [
++    { kind: 'membership', records: [{ id: 1 }] },
++    ...changes,
++  ]);
++  return { store, view };
++}
++
++test('projected data preserves alias insertion order and canonical value equality', () => {
++  for (const aliases of [
++    ['a', 'b'],
++    ['z', 'a'],
++    ['10', '2'],
++    ['__proto__', 'constructor'],
++  ]) {
++    const { store, view } = setup(
++      [field('first', aliases[0]), field('second', aliases[1])],
++      [write('first', { z: 1, a: 2 }), write('second', 'unchanged')],
++    );
++    const before = view.getSnapshot();
++    const expected = Object.assign(Object.create(null), {
++      [aliases[0]]: { a: 2, z: 1 },
++      [aliases[1]]: 'unchanged',
++    });
++    assert.deepEqual(
++      Object.keys(before.records[0].data),
++      Object.keys(expected),
++    );
++    assert.equal(
++      canonicalInput(before.records[0].data),
++      canonicalInput(expected),
++    );
++    assert.equal(
++      canonicalInput(snapshotInput(before.records[0].data)),
++      canonicalInput(expected),
++    );
++    let calls = 0;
++    view.subscribe(() => calls++);
++    store.commit('test', [write('first', { a: 2, z: 1 })]);
++    assert.equal(view.getSnapshot(), before);
++    assert.equal(calls, 0);
++    store.commit('test', [write('first', { a: 3, z: 1 })]);
++    assert.equal(calls, 1);
++    assert.equal(view.getSnapshot().records[0].data[aliases[1]], 'unchanged');
++    store.dispose();
++  }
++});
++
++test('array-bearing projections retain later iteration and serialization hooks', () => {
++  const { store, view } = setup(
++    [field('items')],
++    [write('items', { nested: ['held'] })],
++  );
++  const data = view.getSnapshot().records[0].data;
++  const iterator = Object.getOwnPropertyDescriptor(
++    Array.prototype,
++    Symbol.iterator,
++  );
++  const toJSON = Object.getOwnPropertyDescriptor(Array.prototype, 'toJSON');
++  let copied, encoded;
++  try {
++    Object.defineProperty(Array.prototype, Symbol.iterator, {
++      ...iterator,
++      value: function* () {
++        if (this === data.items.nested) yield 'changed';
++        else yield* iterator.value.call(this);
++      },
++    });
++    copied = snapshotInput(data);
++    encoded = canonicalInput(data);
++  } finally {
++    Object.defineProperty(Array.prototype, Symbol.iterator, iterator);
++  }
++  assert.equal(copied.items.nested[0], 'changed');
++  assert.equal(encoded, '{"items":{"nested":["changed"]}}');
++  try {
++    Object.defineProperty(Array.prototype, 'toJSON', {
++      configurable: true,
++      value() {
++        return this.length === 1 && this[0] === 'held' ? 'encoded' : this;
++      },
++    });
++    encoded = canonicalInput(data);
++  } finally {
++    if (toJSON) Object.defineProperty(Array.prototype, 'toJSON', toJSON);
++    else delete Array.prototype.toJSON;
++  }
++  assert.equal(encoded, '{"items":{"nested":"encoded"}}');
++  assert.equal(canonicalInput(data), '{"items":{"nested":["held"]}}');
++  store.dispose();
++});
++
++test('projected immutable children do not bless caller-owned siblings or wrappers', () => {
++  assert.equal('assembleInputObject' in publicApi, false);
++  const { store, view } = setup(
++    [field('payload')],
++    [write('payload', { a: 1 })],
++  );
++  const data = view.getSnapshot().records[0].data;
++  const mutable = { value: 2 };
++  const caller = Object.freeze({ data, mutable });
++  const copied = snapshotInput(caller);
++  mutable.value = 3;
++  assert.equal(copied.mutable.value, 2);
++  assert.equal(snapshotInput(caller).mutable.value, 3);
++  assert.throws(
++    () => canonicalInput({ data, invalid: Infinity }),
++    /finite JSON/,
++  );
++  assert.throws(
++    () =>
++      snapshotInput({
++        data,
++        get invalid() {
++          return 1;
++        },
++      }),
++    /accessors/,
++  );
++  store.dispose();
++});
