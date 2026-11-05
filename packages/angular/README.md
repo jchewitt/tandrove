@@ -8,13 +8,13 @@ The adapter observes the shared core runtime without duplicating fetching, retri
 
 ## Install and compatibility
 
-Installation example for `0.1.0-alpha.5` in an Angular 21 application:
+Installation example for `1.0.0-alpha.6` in an Angular 21 application:
 
 ```sh
-npm install @tandrove/core@0.1.0-alpha.5 @tandrove/angular@0.1.0-alpha.5
+npm install @tandrove/core@1.0.0-alpha.6 @tandrove/angular@1.0.0-alpha.6
 ```
 
-Add `@tandrove/graphql@0.1.0-alpha.5` and `graphql@^16.14.2` for GraphQL applications. Angular core `^20.1.0 || ^21.0.0 || ^22.0.0` and exactly matching Tandrove core are peers. Angular 20.1.0 is the minimum public-API version for `DestroyRef.destroyed`; earlier versions are unsupported. The package is built with Angular 20.1.0/TypeScript 5.8.3 through ng-packagr in partial compilation mode. Installed-package AOT and Zone/zoneless checks cover the minimum and later supported majors; see [the compatibility matrix](https://github.com/jchewitt/tandrove/blob/main/docs/ANGULAR.md#angular-compatibility). It contains ESM JavaScript and optional declarations, and is published from the generated `dist` directory. Previously published artifacts retain their original peer ranges; see [release status](https://github.com/jchewitt/tandrove/blob/main/docs/RELEASING.md).
+Add `@tandrove/graphql@1.0.0-alpha.6` and `graphql@^16.14.2` for GraphQL applications. Angular core `^20.1.0 || ^21.0.0 || ^22.0.0` and exactly matching Tandrove core are peers. Angular 20.1.0 is the minimum public-API version for `DestroyRef.destroyed`; earlier versions are unsupported. The package is built with Angular 20.1.0/TypeScript 5.8.3 through ng-packagr in partial compilation mode. Installed-package AOT and Zone/zoneless checks cover the minimum and later supported majors; see [the compatibility matrix](https://github.com/jchewitt/tandrove/blob/main/docs/ANGULAR.md#angular-compatibility). It contains ESM JavaScript and optional declarations, and is published from the generated `dist` directory. Previously published artifacts retain their original peer ranges; see [release status](https://github.com/jchewitt/tandrove/blob/main/docs/RELEASING.md).
 
 The alpha API and extension interfaces may change with documented migrations. Demo form helpers are not exported: form drafts stay local and a save command remains application-owned. No socket, server, persistence or timer package is required. See [release status](https://github.com/jchewitt/tandrove/blob/main/docs/RELEASING.md) before installing a version not yet published.
 
