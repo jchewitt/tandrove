@@ -32,8 +32,11 @@ export function snapshotInput(input: unknown): InputValue {
 }
 
 // Serialization-only copies need no reusable provenance bookkeeping.
-function copyInput(input: unknown, remember: boolean): InputValue {
-  const ancestors = new Set<object>();
+function copyInput(
+  input: unknown,
+  remember: boolean,
+  ancestors = new Set<object>(),
+): InputValue {
   function copy(value: unknown): InputValue {
     if (
       value === null ||
@@ -96,6 +99,14 @@ export function canonicalInput(input: unknown): string {
     }
   }
   return JSON.stringify(copyInput(input, false));
+}
+
+/** Internal serialization copy; validates without retaining new provenance. */
+export function copyCanonicalInput(
+  input: unknown,
+  ancestors: Set<object>,
+): InputValue {
+  return copyInput(input, false, ancestors);
 }
 
 /** Selection and aliases deliberately do not participate in resource identity. */

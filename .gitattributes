@@ -2,6 +2,7 @@
 # Preserve the measured diagnostic script's bytes for its recorded SHA256.
 docs/measurements/b7-canonical-node-ab-script.txt -text whitespace=cr-at-eol,-blank-at-eof
 docs/measurements/b7-projection-node-ab-script.txt -text whitespace=cr-at-eol,-blank-at-eof
+docs/measurements/b7-metadata-node-ab-script.txt -text whitespace=cr-at-eol,-blank-at-eof
 # Unified patches require a context marker on otherwise blank lines.
 docs/measurements/b7-projection-equality-candidate.patch whitespace=-blank-at-eol
 docs/trials/hotel/integration.patch whitespace=-blank-at-eol

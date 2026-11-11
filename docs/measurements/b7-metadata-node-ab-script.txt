@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { cpus, totalmem } from 'node:os';
+
+const root = process.cwd();
+const output = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(join(root, 'package.json'));
+const { build, version: esbuild } = createRequire(join(root, 'apps/billing-demo/package.json'))('esbuild');
+const ts = require('typescript');
+const sha = value => createHash('sha256').update(value).digest('hex');
+const compile = (source, fileName) => ts.transpileModule(source, {
+  fileName,
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, verbatimModuleSyntax: true },
+}).outputText;
+const withoutMap = source => source.replace(/\/\/# sourceMappingURL=.*$/m, '').trim();
+const inputs = {};
+for (const name of ['definition', 'state-store']) {
+  const sourcePath = `packages/core/src/${name}.ts`;
+  const baseline = execFileSync('git', ['show', `HEAD:${sourcePath}`], { encoding: 'utf8' });
+  const candidate = readFileSync(join(root, sourcePath), 'utf8');
+  assert.equal(withoutMap(compile(candidate, `${name}.ts`)), withoutMap(readFileSync(join(root, `packages/core/dist/${name}.js`), 'utf8')));
+  inputs[name] = { sourcePath, baseline, candidate };
+}
+const bundles = {};
+const substituted = [];
+for (const variant of ['baseline', 'candidate']) {
+  const result = await build({
+    entryPoints: [join(root, 'apps/billing-demo/bench/readiness-node.mjs')],
+    bundle: true, platform: 'node', mainFields: ['module', 'main'], format: 'esm', target: 'es2022', minify: false, write: false,
+    plugins: variant === 'baseline' ? [{ name: 'previous-projection-modules-only', setup(builder) {
+      builder.onLoad({ filter: /[\\/]core[\\/]dist[\\/](definition|state-store)\.js$/ }, args => {
+        const name = /[\\/]([^\\/]+)\.js$/.exec(args.path)[1];
+        assert.equal(args.path.replaceAll('\\', '/'), join(root, `packages/core/dist/${name}.js`).replaceAll('\\', '/'));
+        substituted.push(name);
+        return { contents: compile(inputs[name].baseline, `${name}.ts`), loader: 'js', resolveDir: dirname(args.path) };
+      });
+    } }] : [],
+  });
+  bundles[variant] = result.outputFiles[0].text;
+  writeFileSync(join(output, `projection-${variant}-node.mjs`), bundles[variant]);
+}
+assert.deepEqual(substituted.sort(), ['definition', 'state-store']);
+const files = ['apps/billing-demo/bench/readiness.mjs', 'apps/billing-demo/bench/readiness-node.mjs', 'apps/billing-demo/bench/readiness-workload.mjs'];
+const report = {
+  measuredAt: new Date().toISOString(),
+  method: 'Same-session Node diagnostic in baseline/candidate/candidate/baseline order. Each fresh Node process executes the unchanged complete readiness-node planning/refresh workload in an identically configured ESM bundle. Exactly definition.js and state-store.js are substituted in the baseline with transpiled HEAD source; candidate transpilation is checked against built modules. Bundling differs from the formal unbundled Node measurement, so these results corroborate comparison within one session and do not replace the full measurement or explain browser variability.',
+  sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+  sourceDirty: execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0,
+  sourceSha256: Object.fromEntries(Object.entries(inputs).map(([name, input]) => [input.sourcePath, { baseline: sha(input.baseline), candidate: sha(input.candidate) }])),
+  diagnosticScriptSha256: sha(readFileSync(fileURLToPath(import.meta.url))),
+  harnessSha256: Object.fromEntries(files.map(file => [file, sha(readFileSync(join(root, file)))])),
+  bundleSha256: Object.fromEntries(Object.entries(bundles).map(([name, code]) => [name, sha(code)])),
+  environment: { node: process.version, platform: process.platform, arch: process.arch, cpu: cpus()[0].model, logicalCpus: cpus().length, systemMemoryBytes: totalmem(), esbuild },
+  runs: [],
+};
+for (const variant of ['baseline', 'candidate', 'candidate', 'baseline']) {
+  console.log(`Running ${variant} Node workload...`);
+  const result = JSON.parse(execFileSync(process.execPath, [join(output, `projection-${variant}-node.mjs`)], { cwd: root, encoding: 'utf8', timeout: 300000, maxBuffer: 10 * 1024 * 1024 }));
+  report.runs.push({ variant, result });
+  console.log(JSON.stringify({ variant, medians: result.refresh.map(row => ({ records: row.recordCount, full: row.full.wall.median, narrow: row.narrow.wall.median })) }));
+}
+for (const [name, input] of Object.entries(inputs)) {
+  assert.equal(readFileSync(join(root, input.sourcePath), 'utf8'), input.candidate, `Source changed during measurement: ${name}`);
+}
+writeFileSync(join(output, 'projection-node-ab.json'), JSON.stringify(report, null, 2) + '\n');
