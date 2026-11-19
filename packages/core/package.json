@@ -1,6 +1,6 @@
 {
   "name": "@tandrove/core",
-  "version": "0.1.0-alpha.5",
+  "version": "1.0.0-alpha.6",
   "description": "Framework-independent Tandrove shared-state runtime and selective refresh contracts.",
   "type": "module",
   "license": "MIT",
