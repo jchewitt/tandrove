@@ -1,0 +1,1221 @@
+{
+  "scriptSha256": "4cee26306018cdadc7ae3318404f88340a6076203a5124fab8f75160825b1b59",
+  "node": "v24.2.0",
+  "startedOrder": ["before", "after", "after", "before"],
+  "runs": [
+    {
+      "revision": "12810228fb262983beae28d6db2befe6de3ebafe",
+      "bundleSha256": "f6658b674121ed92c16484d945f591b58636cc06958480eac30124e46675a00e",
+      "chromium": "156.0.8078.4",
+      "heapSamples": [
+        {
+          "phase": "baseline",
+          "batch": 0,
+          "heap": {
+            "usedSize": 2879532,
+            "totalSize": 8720384,
+            "embedderHeapUsedSize": 385192,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 9,
+            "transportInFlight": 0,
+            "executeMs": 25.299999997019768,
+            "batchStarts": 3,
+            "completedBatches": 3,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 6,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 1,
+          "heap": {
+            "usedSize": 24153452,
+            "totalSize": 25497600,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 39.29999999701977,
+            "batchStarts": 4,
+            "completedBatches": 3,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 1,
+          "heap": {
+            "usedSize": 2902228,
+            "totalSize": 5312512,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 39.29999999701977,
+            "batchStarts": 4,
+            "completedBatches": 4,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 2,
+          "heap": {
+            "usedSize": 24162976,
+            "totalSize": 25759744,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 53.600000001490116,
+            "batchStarts": 5,
+            "completedBatches": 4,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 2,
+          "heap": {
+            "usedSize": 2911044,
+            "totalSize": 4788224,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 53.600000001490116,
+            "batchStarts": 5,
+            "completedBatches": 5,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 3,
+          "heap": {
+            "usedSize": 24165336,
+            "totalSize": 25759744,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 69.20000000298023,
+            "batchStarts": 6,
+            "completedBatches": 5,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 3,
+          "heap": {
+            "usedSize": 2913188,
+            "totalSize": 4788224,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 69.20000000298023,
+            "batchStarts": 6,
+            "completedBatches": 6,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 4,
+          "heap": {
+            "usedSize": 24170544,
+            "totalSize": 25497600,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 84.29999999701977,
+            "batchStarts": 7,
+            "completedBatches": 6,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 4,
+          "heap": {
+            "usedSize": 2918368,
+            "totalSize": 4788224,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 84.29999999701977,
+            "batchStarts": 7,
+            "completedBatches": 7,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 5,
+          "heap": {
+            "usedSize": 24178124,
+            "totalSize": 25235456,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 99.3999999910593,
+            "batchStarts": 8,
+            "completedBatches": 7,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 5,
+          "heap": {
+            "usedSize": 2925964,
+            "totalSize": 4526080,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 99.3999999910593,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "disposed",
+          "batch": 5,
+          "heap": {
+            "usedSize": 2843272,
+            "totalSize": 3477504,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 99.3999999910593,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": true
+          }
+        }
+      ],
+      "tables": {
+        "uniqueTableCount": 2,
+        "tableBytes": 104,
+        "largeTables": []
+      },
+      "counts": {
+        "requests": 24,
+        "transportInFlight": 0,
+        "executeMs": 99.3999999910593,
+        "batchStarts": 8,
+        "completedBatches": 8,
+        "activeScopes": 0,
+        "activeOwners": 0,
+        "activeSubscriptions": 0,
+        "notifications": 0,
+        "verifiedReacquisitions": 21,
+        "disposed": true
+      }
+    },
+    {
+      "revision": "c0d58c53f1cbe0c56378533aff3216180d9c73b1",
+      "bundleSha256": "c67f7c17c38a7d7cc1942b05e65457d0935fab5362606b22aae28d4dd2cbbe9b",
+      "chromium": "156.0.8078.4",
+      "heapSamples": [
+        {
+          "phase": "baseline",
+          "batch": 0,
+          "heap": {
+            "usedSize": 3929708,
+            "totalSize": 9248768,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 9,
+            "transportInFlight": 0,
+            "executeMs": 22.600000016391277,
+            "batchStarts": 3,
+            "completedBatches": 3,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 6,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 1,
+          "heap": {
+            "usedSize": 22022516,
+            "totalSize": 25501696,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 30.600000016391277,
+            "batchStarts": 4,
+            "completedBatches": 3,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 1,
+          "heap": {
+            "usedSize": 3953284,
+            "totalSize": 6103040,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 30.600000016391277,
+            "batchStarts": 4,
+            "completedBatches": 4,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 2,
+          "heap": {
+            "usedSize": 22031336,
+            "totalSize": 24715264,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 44.80000001937151,
+            "batchStarts": 5,
+            "completedBatches": 4,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 2,
+          "heap": {
+            "usedSize": 3961412,
+            "totalSize": 5054464,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 44.80000001937151,
+            "batchStarts": 5,
+            "completedBatches": 5,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 3,
+          "heap": {
+            "usedSize": 22035160,
+            "totalSize": 24715264,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 57.900000028312206,
+            "batchStarts": 6,
+            "completedBatches": 5,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 3,
+          "heap": {
+            "usedSize": 3964996,
+            "totalSize": 5054464,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 57.900000028312206,
+            "batchStarts": 6,
+            "completedBatches": 6,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 4,
+          "heap": {
+            "usedSize": 22044560,
+            "totalSize": 25239552,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 72.50000002980232,
+            "batchStarts": 7,
+            "completedBatches": 6,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 4,
+          "heap": {
+            "usedSize": 3969724,
+            "totalSize": 5316608,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 72.50000002980232,
+            "batchStarts": 7,
+            "completedBatches": 7,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 5,
+          "heap": {
+            "usedSize": 22047428,
+            "totalSize": 25239552,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 86.20000003278255,
+            "batchStarts": 8,
+            "completedBatches": 7,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 5,
+          "heap": {
+            "usedSize": 3977260,
+            "totalSize": 5054464,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 86.20000003278255,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "disposed",
+          "batch": 5,
+          "heap": {
+            "usedSize": 3894568,
+            "totalSize": 4268032,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 86.20000003278255,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": true
+          }
+        }
+      ],
+      "tables": {
+        "uniqueTableCount": 3,
+        "tableBytes": 1048700,
+        "largeTables": [
+          {
+            "bytes": 1048596,
+            "slots": ["xr"]
+          }
+        ]
+      },
+      "counts": {
+        "requests": 24,
+        "transportInFlight": 0,
+        "executeMs": 86.20000003278255,
+        "batchStarts": 8,
+        "completedBatches": 8,
+        "activeScopes": 0,
+        "activeOwners": 0,
+        "activeSubscriptions": 0,
+        "notifications": 0,
+        "verifiedReacquisitions": 21,
+        "disposed": true
+      }
+    },
+    {
+      "revision": "c0d58c53f1cbe0c56378533aff3216180d9c73b1",
+      "bundleSha256": "c67f7c17c38a7d7cc1942b05e65457d0935fab5362606b22aae28d4dd2cbbe9b",
+      "chromium": "156.0.8078.4",
+      "heapSamples": [
+        {
+          "phase": "baseline",
+          "batch": 0,
+          "heap": {
+            "usedSize": 3930252,
+            "totalSize": 9248768,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 9,
+            "transportInFlight": 0,
+            "executeMs": 21.899999991059303,
+            "batchStarts": 3,
+            "completedBatches": 3,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 6,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 1,
+          "heap": {
+            "usedSize": 22023008,
+            "totalSize": 25501696,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 30.69999999552965,
+            "batchStarts": 4,
+            "completedBatches": 3,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 1,
+          "heap": {
+            "usedSize": 3953776,
+            "totalSize": 5840896,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 30.69999999552965,
+            "batchStarts": 4,
+            "completedBatches": 4,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 2,
+          "heap": {
+            "usedSize": 22032860,
+            "totalSize": 25239552,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 41.30000000447035,
+            "batchStarts": 5,
+            "completedBatches": 4,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 2,
+          "heap": {
+            "usedSize": 3962936,
+            "totalSize": 5578752,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 41.30000000447035,
+            "batchStarts": 5,
+            "completedBatches": 5,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 3,
+          "heap": {
+            "usedSize": 22035676,
+            "totalSize": 24977408,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 56.30000000447035,
+            "batchStarts": 6,
+            "completedBatches": 5,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 3,
+          "heap": {
+            "usedSize": 3965512,
+            "totalSize": 5054464,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 56.30000000447035,
+            "batchStarts": 6,
+            "completedBatches": 6,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 4,
+          "heap": {
+            "usedSize": 22041036,
+            "totalSize": 24977408,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 69.40000000596046,
+            "batchStarts": 7,
+            "completedBatches": 6,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 4,
+          "heap": {
+            "usedSize": 3970852,
+            "totalSize": 5578752,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 69.40000000596046,
+            "batchStarts": 7,
+            "completedBatches": 7,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 5,
+          "heap": {
+            "usedSize": 22047980,
+            "totalSize": 24977408,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 83.70000001043081,
+            "batchStarts": 8,
+            "completedBatches": 7,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 5,
+          "heap": {
+            "usedSize": 3977812,
+            "totalSize": 5054464,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 83.70000001043081,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "disposed",
+          "batch": 5,
+          "heap": {
+            "usedSize": 3895120,
+            "totalSize": 4268032,
+            "embedderHeapUsedSize": 299360,
+            "backingStorageSize": 211226
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 83.70000001043081,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": true
+          }
+        }
+      ],
+      "tables": {
+        "uniqueTableCount": 3,
+        "tableBytes": 1048700,
+        "largeTables": [
+          {
+            "bytes": 1048596,
+            "slots": ["xr"]
+          }
+        ]
+      },
+      "counts": {
+        "requests": 24,
+        "transportInFlight": 0,
+        "executeMs": 83.70000001043081,
+        "batchStarts": 8,
+        "completedBatches": 8,
+        "activeScopes": 0,
+        "activeOwners": 0,
+        "activeSubscriptions": 0,
+        "notifications": 0,
+        "verifiedReacquisitions": 21,
+        "disposed": true
+      }
+    },
+    {
+      "revision": "12810228fb262983beae28d6db2befe6de3ebafe",
+      "bundleSha256": "f6658b674121ed92c16484d945f591b58636cc06958480eac30124e46675a00e",
+      "chromium": "156.0.8078.4",
+      "heapSamples": [
+        {
+          "phase": "baseline",
+          "batch": 0,
+          "heap": {
+            "usedSize": 2879016,
+            "totalSize": 8458240,
+            "embedderHeapUsedSize": 434184,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 9,
+            "transportInFlight": 0,
+            "executeMs": 26.30000000447035,
+            "batchStarts": 3,
+            "completedBatches": 3,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 6,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 1,
+          "heap": {
+            "usedSize": 24153872,
+            "totalSize": 25235456,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 40.70000001043081,
+            "batchStarts": 4,
+            "completedBatches": 3,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 1,
+          "heap": {
+            "usedSize": 2902672,
+            "totalSize": 5574656,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 12,
+            "transportInFlight": 0,
+            "executeMs": 40.70000001043081,
+            "batchStarts": 4,
+            "completedBatches": 4,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 9,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 2,
+          "heap": {
+            "usedSize": 24161564,
+            "totalSize": 25235456,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 56.30000001192093,
+            "batchStarts": 5,
+            "completedBatches": 4,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 2,
+          "heap": {
+            "usedSize": 2909632,
+            "totalSize": 4526080,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 15,
+            "transportInFlight": 0,
+            "executeMs": 56.30000001192093,
+            "batchStarts": 5,
+            "completedBatches": 5,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 12,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 3,
+          "heap": {
+            "usedSize": 24165048,
+            "totalSize": 25235456,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 70.60000001639128,
+            "batchStarts": 6,
+            "completedBatches": 5,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 3,
+          "heap": {
+            "usedSize": 2912900,
+            "totalSize": 4526080,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 18,
+            "transportInFlight": 0,
+            "executeMs": 70.60000001639128,
+            "batchStarts": 6,
+            "completedBatches": 6,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 15,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 4,
+          "heap": {
+            "usedSize": 24169896,
+            "totalSize": 25759744,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 83.2000000178814,
+            "batchStarts": 7,
+            "completedBatches": 6,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 4,
+          "heap": {
+            "usedSize": 2917720,
+            "totalSize": 4526080,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 21,
+            "transportInFlight": 0,
+            "executeMs": 83.2000000178814,
+            "batchStarts": 7,
+            "completedBatches": 7,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 18,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "active",
+          "batch": 5,
+          "heap": {
+            "usedSize": 24178376,
+            "totalSize": 26284032,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 98.80000001192093,
+            "batchStarts": 8,
+            "completedBatches": 7,
+            "activeScopes": 3,
+            "activeOwners": 6,
+            "activeSubscriptions": 6,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "released",
+          "batch": 5,
+          "heap": {
+            "usedSize": 2926216,
+            "totalSize": 4526080,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 98.80000001192093,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": false
+          }
+        },
+        {
+          "phase": "disposed",
+          "batch": 5,
+          "heap": {
+            "usedSize": 2843524,
+            "totalSize": 3215360,
+            "embedderHeapUsedSize": 299448,
+            "backingStorageSize": 210940
+          },
+          "counters": {
+            "requests": 24,
+            "transportInFlight": 0,
+            "executeMs": 98.80000001192093,
+            "batchStarts": 8,
+            "completedBatches": 8,
+            "activeScopes": 0,
+            "activeOwners": 0,
+            "activeSubscriptions": 0,
+            "notifications": 0,
+            "verifiedReacquisitions": 21,
+            "disposed": true
+          }
+        }
+      ],
+      "tables": {
+        "uniqueTableCount": 2,
+        "tableBytes": 104,
+        "largeTables": []
+      },
+      "counts": {
+        "requests": 24,
+        "transportInFlight": 0,
+        "executeMs": 98.80000001192093,
+        "batchStarts": 8,
+        "completedBatches": 8,
+        "activeScopes": 0,
+        "activeOwners": 0,
+        "activeSubscriptions": 0,
+        "notifications": 0,
+        "verifiedReacquisitions": 21,
+        "disposed": true
+      }
+    }
+  ]
+}

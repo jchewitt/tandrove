@@ -1,0 +1,102 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { arch, cpus, platform, totalmem } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// From the measured checkout, after running pnpm measure:readiness, pass
+// the formal report and a new output filename outside the checkout.
+const [reportPath, outputPath] = process.argv.slice(2);
+assert.ok(reportPath && outputPath, 'Pass the formal report and output file.');
+const { chromium } = createRequire(join(process.cwd(), 'package.json'))('@playwright/test');
+const bytes = readFileSync(reportPath);
+const formal = JSON.parse(bytes);
+const hash = (value) => createHash('sha256').update(value).digest('hex');
+const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+const sourceDigest = () => hash(git('ls-files', 'packages/core/src', 'packages/graphql/src').split('\n')
+  .map((file) => `${file}\0${hash(readFileSync(file))}`).join('\n'));
+const source = sourceDigest();
+assert.equal(source, formal.runtimeSourceSha256);
+const bundle = readFileSync('output/playwright/readiness/workload.js');
+assert.equal(hash(bundle), formal.browserBundleSha256);
+const harness = 'apps/billing-demo/bench/readiness-workload.mjs';
+assert.equal(hash(readFileSync(harness)), formal.harnessSha256[harness]);
+
+const scopeCount = 3, recordCount = 1000, selectionWidth = 8, warmups = 3, batches = 200;
+const samples = [];
+const pageErrors = [];
+const browser = await chromium.launch({ headless: true });
+const chromiumVersion = browser.version();
+const startedAt = new Date().toISOString();
+let elapsedMs;
+try {
+  assert.equal(chromiumVersion, formal.environment.chromium);
+  const context = await browser.newContext();
+  await context.route('**/*', (route) => route.abort());
+  const page = await context.newPage();
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.goto('about:blank');
+  await page.addScriptTag({ content: bundle.toString('utf8') });
+  const session = await context.newCDPSession(page);
+  await session.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  const start = performance.now();
+  await page.evaluate(({ recordCount, selectionWidth }) => {
+    globalThis.lifecycle = globalThis.tandroveReadiness.createLifecycleWorkload({ recordCount, selectionWidth });
+  }, { recordCount, selectionWidth });
+  const acquire = () => page.evaluate((scopeCount) => globalThis.lifecycle.acquireBatch({ scopeCount }), scopeCount);
+  const release = () => page.evaluate(() => globalThis.lifecycle.releaseBatch());
+
+  async function sample(phase, batch) {
+    await session.send('HeapProfiler.collectGarbage');
+    const heap = await session.send('Runtime.getHeapUsage');
+    const counters = await page.evaluate(() => globalThis.lifecycle.getCounters());
+    const active = phase === 'active';
+    assert.equal(counters.batchStarts, batch + warmups);
+    assert.equal(counters.completedBatches, counters.batchStarts - Number(active));
+    assert.equal(counters.requests, (batch + warmups) * scopeCount);
+    assert.equal(counters.verifiedReacquisitions, counters.requests - scopeCount);
+    assert.equal(counters.activeOwners, active ? scopeCount * 2 : 0);
+    assert.equal(counters.activeScopes, active ? scopeCount : 0);
+    assert.equal(counters.activeSubscriptions, counters.activeOwners);
+    assert.equal(counters.transportInFlight, 0);
+    assert.equal(counters.disposed, phase === 'disposed');
+    samples.push({ phase, batch, elapsedMs: performance.now() - start, heap, counters });
+  }
+
+  for (let batch = 0; batch < warmups; batch++) { await acquire(); await release(); }
+  await sample('baseline', 0);
+  for (let batch = 1; batch <= batches; batch++) {
+    const checkpoint = batch === 1 || batch % 10 === 0;
+    await acquire();
+    if (checkpoint) await sample('active', batch);
+    await release();
+    if (checkpoint) await sample('released', batch);
+  }
+  await page.evaluate(() => globalThis.lifecycle.dispose());
+  await sample('disposed', batches);
+  elapsedMs = performance.now() - start;
+  assert.deepEqual(pageErrors, []);
+  await context.close();
+} finally {
+  await browser.close();
+}
+assert.equal(sourceDigest(), source);
+const released = samples.filter((s) => s.phase === 'released' && s.batch % 10 === 0);
+const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+const med = (ss) => median(ss.map((s) => s.heap.usedSize));
+const result = {
+  startedAt, elapsedMs, sourceCommit: git('rev-parse', 'HEAD'),
+  sourceDirty: git('status', '--porcelain').length > 0,
+  scriptSha256: hash(readFileSync(fileURLToPath(import.meta.url))),
+  workloadSha256: formal.harnessSha256[harness], bundleSha256: hash(bundle), runtimeSourceSha256: source,
+  formalParentCommit: formal.sourceCommit,
+  environment: { node: process.version, chromium: chromiumVersion, arch: arch(), os: platform(), logicalCpus: cpus().length, cpu: cpus()[0].model.trim(), systemMemoryBytes: totalmem() },
+  workload: { scopeCount, recordCount, selectionWidth, retentionMs: 0, warmups, batches, ownersPerScope: 2, cpuThrottle: 1 },
+  lifecycleChecks: { pageErrors: pageErrors.length, firstFiveUniformReleasedMedianBytes: med(released.slice(0, 5)), lastFiveUniformReleasedMedianBytes: med(released.slice(-5)) },
+  samples,
+};
+writeFileSync(outputPath, JSON.stringify(result, null, 2) + '\n', { flag: 'wx' });
+console.log(JSON.stringify({ elapsedMs, ...result.lifecycleChecks, last: samples.at(-1) }));

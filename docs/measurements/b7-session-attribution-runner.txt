@@ -1,0 +1,131 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Run from a Tandrove checkout with its pinned dependencies and built core/GraphQL.
+// Each variant must reconstruct the previously measured browser bundle byte for byte.
+const root = process.cwd();
+const [output] = process.argv.slice(2);
+assert.ok(output, 'Pass a new receipt filename.');
+const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const require = createRequire(join(root, 'package.json'));
+const { chromium } = require('@playwright/test');
+const ts = require('typescript');
+const { build } = createRequire(join(root, 'apps/billing-demo/package.json'))('esbuild');
+const variants = [
+  ['before', '12810228fb262983beae28d6db2befe6de3ebafe', 'docs/measurements/b7-store-projection.json'],
+  ['after', 'c0d58c53f1cbe0c56378533aff3216180d9c73b1', 'docs/measurements/b7-canonical-snapshots.json'],
+];
+
+async function reconstruct([name, revision, reportPath]) {
+  const formal = JSON.parse(readFileSync(reportPath));
+  const result = await build({
+    stdin: {
+      contents: "import * as readiness from './readiness-workload.mjs'; globalThis.tandroveReadiness = readiness;",
+      resolveDir: join(root, 'apps/billing-demo/bench'), sourcefile: 'readiness-browser-entry.mjs',
+    },
+    bundle: true, platform: 'browser', format: 'iife', target: 'es2022', minify: true,
+    write: false, metafile: true, define: { 'process.env.NODE_ENV': '"production"' },
+    plugins: [{ name: 'historical-runtime', setup(builder) {
+      builder.onLoad({ filter: /[\\/]packages[\\/](core|graphql)[\\/]dist[\\/].*\.js$/ }, ({path}) => {
+        const file = relative(root, path).replaceAll('\\', '/').replace('/dist/', '/src/').replace(/\.js$/, '.ts');
+        const source = execFileSync('git', ['show', `${revision}:${file}`], {encoding:'utf8'});
+        const compiled = ts.transpileModule(source, {fileName:file, compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,verbatimModuleSyntax:true}});
+        return { contents:compiled.outputText, loader:'js', resolveDir:dirname(path) };
+      });
+    } }],
+  });
+  const code = result.outputFiles[0].text;
+  const digest = hash(code);
+  assert.equal(digest, formal.browserBundleSha256, `Historical bundle hash: ${name}`);
+  return {revision, code, digest, expectedVersion:formal.environment.chromium};
+}
+
+// Chromium's heap snapshot stores node and outgoing-edge records as flat arrays.
+// Count each unique backing table once. Keep source-binding names only when they
+// name a script-context slot referring to a WeakMap with a >=64 KiB table.
+function weakTables({snapshot:{meta}, nodes, edges, strings}) {
+  const nf = meta.node_fields, ef = meta.edge_fields;
+  const typeAt = nf.indexOf('type'), nameAt = nf.indexOf('name'), sizeAt = nf.indexOf('self_size'), countAt = nf.indexOf('edge_count');
+  const nodeTypes = meta.node_types[typeAt];
+  const edgeTypeAt = ef.indexOf('type'), edgeNameAt = ef.indexOf('name_or_index'), destAt = ef.indexOf('to_node');
+  const edgeTypes = meta.edge_types[edgeTypeAt];
+  const tables = new Map();
+  const holders = new Map();
+  function visit(fn) {
+    let e = 0;
+    for (let n=0; n<nodes.length; n+=nf.length) {
+      const last = e + nodes[n+countAt]*ef.length;
+      for (; e<last; e+=ef.length) fn(n,e);
+    }
+    assert.equal(e, edges.length);
+  }
+  visit((n,e) => {
+    if (nodeTypes[nodes[n+typeAt]] !== 'object' || strings[nodes[n+nameAt]] !== 'WeakMap' || edgeTypes[edges[e+edgeTypeAt]] !== 'internal' || strings[edges[e+edgeNameAt]] !== 'table') return;
+    const dest = edges[e+destAt], bytes = nodes[dest+sizeAt];
+    tables.set(dest, bytes);
+    if (bytes>=65536) holders.set(n,{bytes,slots:[]});
+  });
+  visit((_,e) => {
+    const holder = holders.get(edges[e+destAt]);
+    if (holder && edgeTypes[edges[e+edgeTypeAt]] === 'context') holder.slots.push(strings[edges[e+edgeNameAt]]);
+  });
+  return { uniqueTableCount: tables.size, tableBytes:[...tables.values()].reduce((a,b)=>a+b,0),largeTables:[...holders.values()].sort((a,b)=>b.bytes-a.bytes) };
+}
+
+async function measure(variant) {
+  const browser = await chromium.launch({headless:true});
+  try {
+    assert.equal(browser.version(),variant.expectedVersion);
+    const context = await browser.newContext();
+    await context.route('**/*', route=>route.abort());
+    const page = await context.newPage();
+    await page.goto('about:blank');
+    await page.addScriptTag({content:variant.code});
+    const session = await context.newCDPSession(page);
+    await session.send('Emulation.setCPUThrottlingRate',{rate:1});
+    await page.evaluate(() => globalThis.tandroveReadiness.runPlanningMeasurements());
+    await page.evaluate(() => globalThis.tandroveReadiness.runRefreshMeasurements({recordCounts:[100,1000],samples:5}));
+    await page.reload();
+    await page.addScriptTag({content:variant.code});
+    await page.evaluate(async()=>{
+      globalThis.lifecycle = globalThis.tandroveReadiness.createLifecycleWorkload({recordCount:1000,selectionWidth:8});
+      for(let i=0;i<3;i++) {await globalThis.lifecycle.acquireBatch({scopeCount:3}); await globalThis.lifecycle.releaseBatch();}
+    });
+    const heapSamples = [];
+    async function sample(phase, batch) {
+      await session.send('HeapProfiler.collectGarbage');
+      const heap = await session.send('Runtime.getHeapUsage');
+      const counters = await page.evaluate(() => globalThis.lifecycle.getCounters());
+      heapSamples.push({phase,batch,heap,counters});
+    }
+    await sample('baseline',0);
+    for(let batch=1;batch<=5;batch++) {
+      await page.evaluate(()=>globalThis.lifecycle.acquireBatch({scopeCount:3}));
+      await sample('active',batch);
+      await page.evaluate(()=>globalThis.lifecycle.releaseBatch());
+      await sample('released',batch);
+    }
+    await page.evaluate(()=>globalThis.lifecycle.dispose());
+    await sample('disposed',5);
+    const counts = await page.evaluate(()=>globalThis.lifecycle.getCounters());
+    assert.equal(counts.requests,24); assert.equal(counts.verifiedReacquisitions,21);
+    for(const key of ['transportInFlight','activeScopes','activeOwners','activeSubscriptions']) assert.equal(counts[key],0);
+    assert.equal(counts.disposed,true);
+    const heap = heapSamples.at(-1).heap;
+    const chunks = [];
+    session.on('HeapProfiler.addHeapSnapshotChunk', ({chunk})=>chunks.push(chunk));
+    await session.send('HeapProfiler.takeHeapSnapshot',{reportProgress:false});
+    const tables = weakTables(JSON.parse(chunks.join('')));
+    console.log(JSON.stringify({revision:variant.revision,usedSize:heap.usedSize,...tables}));
+    return {revision:variant.revision,bundleSha256:variant.digest,chromium:browser.version(),heapSamples,tables,counts};
+  } finally {await browser.close();}
+}
+const before = await reconstruct(variants[0]); const after = await reconstruct(variants[1]);
+const runs=[];
+for(const variant of [before,after,after,before]) runs.push(await measure(variant));
+writeFileSync(output,JSON.stringify({scriptSha256:hash(readFileSync(fileURLToPath(import.meta.url))),node:process.version,startedOrder:['before','after','after','before'],runs},null,2)+'\n',{flag:'wx'});

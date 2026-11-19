@@ -1,0 +1,156 @@
+diff --git a/packages/core/src/acquisition-coverage.ts b/packages/core/src/acquisition-coverage.ts
+index 85479df..bf3183a 100644
+--- a/packages/core/src/acquisition-coverage.ts
++++ b/packages/core/src/acquisition-coverage.ts
+@@ -1,17 +1,23 @@
+-import { canonicalInput, type ResolvedField } from './definition.js';
++import {
++  canonicalInput,
++  type FieldSegment,
++  type ResolvedField,
++} from './definition.js';
+ import type { FieldPath, RecordIdentity, StateChange } from './state-types.js';
+ import type { AcquiredField } from './acquisition.js';
+ 
+ /** Canonical paths ignore response aliases but retain arguments. */
++function sameSegment(left: FieldSegment, right: FieldSegment): boolean {
++  return (
++    left.name === right.name &&
++    canonicalInput(left.arguments) === canonicalInput(right.arguments)
++  );
++}
++
+ export function pathPrefix(parent: FieldPath, child: FieldPath): boolean {
+   return (
+     parent.length <= child.length &&
+-    parent.every(
+-      (part, index) =>
+-        part.name === child[index]!.name &&
+-        canonicalInput(part.arguments) ===
+-          canonicalInput(child[index]!.arguments),
+-    )
++    parent.every((part, index) => sameSegment(part, child[index]!))
+   );
+ }
+ 
+@@ -31,7 +37,7 @@ export function fieldAtPath(
+ ): ResolvedField | undefined {
+   const [first, ...rest] = path;
+   if (!first) return undefined;
+-  const match = fields.find((field) => pathPrefix([first], [field]));
++  const match = fields.find((field) => sameSegment(first, field));
+   return rest.length && match ? fieldAtPath(rest, match.children) : match;
+ }
+ 
+@@ -49,19 +55,16 @@ export function staleChanges(
+ }
+ 
+ /** A successful ancestor null satisfies its subtree; an object marker alone does not. */
+-export function hasOmissions(
++export function isOmitted(
+   fields: readonly AcquiredField[],
+-  requested: readonly FieldPath[],
++  path: FieldPath,
+ ): boolean {
+-  return requested.some(
+-    (path) =>
+-      !fields.some(
+-        (field) =>
+-          field.kind !== 'object' &&
+-          pathPrefix(field.path, path) &&
+-          (field.path.length === path.length ||
+-            field.kind === 'error' ||
+-            field.value === null),
+-      ),
++  return !fields.some(
++    (field) =>
++      field.kind !== 'object' &&
++      pathPrefix(field.path, path) &&
++      (field.path.length === path.length ||
++        field.kind === 'error' ||
++        field.value === null),
+   );
+ }
+diff --git a/packages/core/src/acquisition-reconciliation.ts b/packages/core/src/acquisition-reconciliation.ts
+index f957ecb..ef9a0f0 100644
+--- a/packages/core/src/acquisition-reconciliation.ts
++++ b/packages/core/src/acquisition-reconciliation.ts
+@@ -5,7 +5,7 @@ import {
+ } from './definition.js';
+ import {
+   fieldAtPath,
+-  hasOmissions,
++  isOmitted,
+   leafPaths,
+   pathPrefix,
+   staleChanges,
+@@ -177,7 +177,9 @@ export function reconcileAcquisition(options: {
+         existing.has(canonicalInput(record.identity)),
+       );
+   const paths = leafPaths(requested);
+-  const omitted = matched.some((record) => hasOmissions(record.fields, paths));
++  const omitted = matched.some((record) =>
++    paths.some((path) => isOmitted(record.fields, path)),
++  );
+   if (patch && omitted) throw new Error('Patch omitted selected fields.');
+   // A whole-list replacement must be usable for its calling view before admission.
+   if (replaceMembership && omitted)
+@@ -204,7 +206,7 @@ export function reconcileAcquisition(options: {
+     changes.push(
+       ...staleChanges(
+         [record],
+-        paths.filter((path) => hasOmissions(record.fields, [path])),
++        paths.filter((path) => isOmitted(record.fields, path)),
+       ),
+     );
+   if (!replacing) changes.push(...staleChanges(missing, paths));
+diff --git a/packages/core/test/acquisition.test.mjs b/packages/core/test/acquisition.test.mjs
+index b44d670..37c64c8 100644
+--- a/packages/core/test/acquisition.test.mjs
++++ b/packages/core/test/acquisition.test.mjs
+@@ -79,6 +79,45 @@ test('omissions remain incomplete and can be filled by a later acquisition', asy
+   assert.equal(handle.getSnapshot().complete, true);
+   client.dispose();
+ });
++
++test('nested aliased fields match canonical arguments and reject a different argument atomically', async (t) => {
++  const client = new AcquisitionClient();
++  t.after(() => client.dispose());
++  const selection = [
++    {
++      ...field('customer'),
++      responseName: 'owner',
++      children: [
++        {
++          ...field('label'),
++          responseName: 'title',
++          arguments: { locale: 'en', tags: ['a', 'b'] },
++        },
++      ],
++    },
++  ];
++  let tags = ['a', 'b'];
++  const parent = { name: 'customer', arguments: {} };
++  const handle = client.watch({
++    stateAddress: 'nested',
++    selection,
++    read: async () => [
++      record([
++        { kind: 'object', path: [parent] },
++        {
++          kind: 'write',
++          path: [parent, { name: 'label', arguments: { tags, locale: 'en' } }],
++          value: tags.join(''),
++        },
++      ]),
++    ],
++  });
++  await handle.ready;
++  assert.equal(handle.getSnapshot().records[0].data.owner.title, 'ab');
++  tags = ['b', 'a'];
++  await assert.rejects(handle.refresh(), /outside fetched coverage/);
++  assert.equal(handle.getSnapshot().records[0].data.owner.title, 'ab');
++});
+ test('a last-owner disposal ignores late data and a future view acquires a fresh baseline', async () => {
+   const client = new AcquisitionClient();
+   let release;
