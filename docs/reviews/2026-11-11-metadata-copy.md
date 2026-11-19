@@ -1,0 +1,11 @@
+# Fixed-shape projection metadata copying
+
+November 11, 2026. B7c.2g specializes canonical copying of store-owned projection metadata while keeping arbitrary data on the validating path. It introduces no retained cache or public API and leaves transactional cloning unchanged.
+
+Independent `metadata_review` review identified two important boundary corrections. Specialized copying must share generic ancestor tracking so iterator-injected parent references reject as cycles. Field/resource errors must also use generic copying because changing untyped getters can return invalid values after initial store validation. Both corrections received regressions and re-review. Native array iteration, frozen serialization receivers, property-key context, optional undefined omission and canonical property traversal remain intact.
+
+All 238 core tests passed, including five new regressions. The independent reviewer passed 39 targeted tests and compared 600 deterministic 65-action histories against the parent, with 39,000 actions and 74,641 matching observations of snapshots, canonical signatures, references, notifications and failures. Eight separate hook cases matched the prior implementation.
+
+The [fresh baseline, candidate and same-session diagnostic](../PERFORMANCE.md#november-11-fixed-shape-metadata-copying) use the unchanged workload. Node improvements recur in the diagnostic; formal browser gains are smaller. The candidate adds roughly 15–19 KB in the bounded whole-isolate heap samples. These results support this focused change, not universal speedups or an accepted performance/memory budget. The earlier roughly 1 MB footprint finding and broader B7c/B7d gates remain open.
+
+Full `pnpm check` passed, including formatting, builds, generated-schema consistency, type checks, tests and isolated packed JavaScript/TypeScript/Angular consumers. Final independent review found no remaining issues in the code, tests, documentation, Changeset or byte-preservation attributes. The reviewer verified all 264 formal and 192 diagnostic statistic groups, harness/environment equality, runtime source digests and exact script/source/bundle hashes. Hosted CI gates merge. The patch Changeset remains batched; no publication is requested.

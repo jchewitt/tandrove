@@ -1,5 +1,6 @@
 import {
   canonicalInput,
+  copyCanonicalInput,
   freezeFields,
   snapshotInput,
   type FieldSegment,
@@ -214,6 +215,80 @@ function projectRecord(
   });
 }
 
+// These objects are assembled only by this module. Copy their fixed metadata
+// shape in canonical key order without sorting/inspecting every descriptor.
+// Payloads remain on the validating path. Array.from and final JSON.stringify
+// still observe iteration/serialization hooks; substituted iterator values use
+// the generic copier instead of acquiring metadata trust.
+function projectionSignature(
+  projection: Omit<StateSnapshot, 'fetching'>,
+): string {
+  const ancestors = new Set<object>();
+  const copy = (value: unknown) => copyCanonicalInput(value, ancestors);
+  const inside = <T>(value: object, build: () => T): T => {
+    if (ancestors.has(value)) throw new Error('Cyclic input.');
+    ancestors.add(value);
+    try {
+      return build();
+    } finally {
+      ancestors.delete(value);
+    }
+  };
+  const object = (): Record<string, InputValue> =>
+    Object.create(null) as Record<string, InputValue>;
+  const copyStatus = (status: FieldStatus): InputValue =>
+    inside(status, () => {
+      const result = object();
+      if (status.error !== undefined) result.error = copy(status.error);
+      result.path = copy(status.path);
+      result.present = status.present;
+      result.stale = status.stale;
+      return Object.freeze(result);
+    });
+  const copyRecord = (record: RecordSnapshot): InputValue =>
+    inside(record, () => {
+      const result = object();
+      result.data = copy(record.data);
+      result.fields = inside(record.fields, () =>
+        Object.freeze(
+          Array.from(record.fields, (status, index) =>
+            status !== undefined && status === record.fields[index]
+              ? copyStatus(status)
+              : copy(status),
+          ),
+        ),
+      );
+      result.identity = copy(record.identity);
+      return Object.freeze(result);
+    });
+  return JSON.stringify(
+    inside(projection, () => {
+      const result = object();
+      result.complete = projection.complete;
+      result.membershipStale = projection.membershipStale;
+      if (projection.records !== undefined) {
+        const records = projection.records;
+        result.records =
+          records === null
+            ? null
+            : inside(records, () =>
+                Object.freeze(
+                  Array.from(records, (record, index) =>
+                    record !== undefined && record === records[index]
+                      ? copyRecord(record)
+                      : copy(record),
+                  ),
+                ),
+              );
+      }
+      if (projection.resourceError !== undefined)
+        result.resourceError = copy(projection.resourceError);
+      result.stale = projection.stale;
+      return Object.freeze(result);
+    }),
+  );
+}
+
 class View implements StateView {
   private active = true;
   private readonly listeners = new Set<() => void>();
@@ -230,7 +305,7 @@ class View implements StateView {
     this.paths = leafPaths(selection);
     this.projection = projectionFields(selection);
     const projection = this.compute();
-    this.signature = canonicalInput(projection);
+    this.signature = projectionSignature(projection);
     this.snapshot = Object.freeze({ ...projection, fetching: this.fetching() });
   }
   private compute(): Omit<StateSnapshot, 'fetching'> {
@@ -274,7 +349,9 @@ class View implements StateView {
   update(reproject: boolean): boolean {
     if (!this.active) return false;
     const projection = reproject ? this.compute() : this.snapshot;
-    const signature = reproject ? canonicalInput(projection) : this.signature;
+    const signature = reproject
+      ? projectionSignature(projection)
+      : this.signature;
     const fetching = this.fetching();
     if (signature === this.signature && fetching === this.snapshot.fetching)
       return false;
