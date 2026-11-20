@@ -245,6 +245,8 @@ A second comparison ran fresh Node processes in baseline, candidate, candidate, 
 
 ### Remaining investigation
 
+In two [matched Angular benchmark runs](PERFORMANCE-APOLLO.md), Tandrove took about 48–50 ms longer than Apollo to load 1,000 rows into two subscribers and about 34–37 ms less to refresh the account IDs. Profile the initial read with an empty client cache to target the observed gap.
+
 Timing and memory numbers are evidence, not automatically accepted budgets. Do not increase a budget to make a slow baseline pass. Establish application responsiveness and retained-memory budgets on the intended workload/device after profiling and rerunning any fixes.
 
 **PERF-01 remains open.** The next decision is which list sizes and refresh patterns the base client supports on the intended device, and which response times and memory budgets those workloads require. B7c.3 covers memory attribution and longer-session behavior. Use those results to decide whether further runtime optimization is necessary for B7d readiness.
