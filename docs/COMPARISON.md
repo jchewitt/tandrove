@@ -6,6 +6,8 @@ October 20, 2026. **Continue StateQL as an independent experimental runtime**, s
 
 ## Reproduce the evidence
 
+For the later Angular comparison with two subscribers, loopback HTTP and lists of 100 and 1,000 invoices, see the [matched large-list benchmark](PERFORMANCE-APOLLO.md).
+
 From a clean install, run:
 
 ```sh

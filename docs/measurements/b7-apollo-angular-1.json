@@ -1,0 +1,1253 @@
+{
+  "measuredAt": "2026-11-20T03:12:54.794Z",
+  "sourceCommit": "d6d3cc04ca32af938d5894800ddcc373b086fd13",
+  "sourceDirty": true,
+  "harnessSha256": {
+    "matched.mjs": "c91d3a4bca17d27e9b70ccfa6a3bb0094729e9d03ca1162eca266cb1eaa8b069",
+    "matched-view.ts": "097dedeacfa2c3f56071e227b860edb1fd46feea1408489fafdf5185936c4671"
+  },
+  "browserBundleSha256": "9bb5e6282ca5cf0a96edce113f226f71a005e060fe0ad431b2685fa2c4f7018f",
+  "environment": {
+    "node": "v24.2.0",
+    "os": "win32",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 7900X 12-Core Processor            ",
+    "logicalCpus": 24,
+    "totalMemoryBytes": 33460912128,
+    "esbuild": "0.28.1",
+    "playwright": "1.64.1",
+    "versions": {
+      "@angular/core": "21.2.25",
+      "@apollo/client": "4.3.4",
+      "apollo-angular": "14.2.0",
+      "graphql": "16.14.2",
+      "@tandrove/angular": "0.1.0-alpha.5",
+      "@tandrove/core": "0.1.0-alpha.5",
+      "@tandrove/graphql": "0.1.0-alpha.5"
+    },
+    "chromium": "156.0.8078.4"
+  },
+  "settings": {
+    "pairs": 32,
+    "warmupPairs": 4,
+    "rowCounts": [100, 1000],
+    "subscribers": 2,
+    "schedule": "One browser page, fresh Angular application and empty client cache per sample. Interleaved pairs alternate client order.",
+    "workload": "One initial list read, then one accountId refresh changing that field on every row. Both Angular views render every row.",
+    "timing": "Browser performance.now from action to both Angular DOM updates. Excludes app startup, template compilation during startup, verification and teardown. DOM updates precede screen paint.",
+    "server": "Loopback HTTP billing fixture with GraphQL validation and execution; no artificial network delay, response compression or CPU throttle.",
+    "statistics": "Median of the two central observations and nearest-rank p95 across 32 measured samples per client and size."
+  },
+  "samples": [
+    {
+      "pair": 1,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 9.800000004470348,
+      "narrowMs": 10,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 1,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 10.400000005960464,
+      "narrowMs": 6.4000000059604645,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 2,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 10,
+      "narrowMs": 7.600000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 2,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 9,
+      "narrowMs": 11.099999994039536,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 3,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.399999998509884,
+      "narrowMs": 11.400000005960464,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 3,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.100000001490116,
+      "narrowMs": 6.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 4,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.400000005960464,
+      "narrowMs": 6.600000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 4,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 10.5,
+      "narrowMs": 10,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 5,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 9.899999998509884,
+      "narrowMs": 12,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 5,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 12.5,
+      "narrowMs": 7.399999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 6,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.300000004470348,
+      "narrowMs": 6.5999999940395355,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 6,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.600000001490116,
+      "narrowMs": 10.199999995529652,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 7,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 7.899999998509884,
+      "narrowMs": 10.899999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 7,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.5,
+      "narrowMs": 7.100000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 8,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9,
+      "narrowMs": 6.600000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 8,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.299999997019768,
+      "narrowMs": 10,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 9,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8,
+      "narrowMs": 11,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 9,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.100000001490116,
+      "narrowMs": 6.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 10,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.899999998509884,
+      "narrowMs": 6.600000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 10,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.400000005960464,
+      "narrowMs": 10.099999994039536,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 11,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8,
+      "narrowMs": 9.600000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 11,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.299999997019768,
+      "narrowMs": 5.899999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 12,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.600000001490116,
+      "narrowMs": 5.9000000059604645,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 12,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.900000005960464,
+      "narrowMs": 11.100000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 13,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8,
+      "narrowMs": 9.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 13,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.600000001490116,
+      "narrowMs": 6.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 14,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 11.799999997019768,
+      "narrowMs": 7.399999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 14,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 9.100000001490116,
+      "narrowMs": 11.399999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 15,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 9.200000002980232,
+      "narrowMs": 9.199999995529652,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 15,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9.299999997019768,
+      "narrowMs": 6.299999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 16,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.5,
+      "narrowMs": 6.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 16,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.100000001490116,
+      "narrowMs": 9.299999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 17,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 7.799999997019768,
+      "narrowMs": 9.699999995529652,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 17,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.699999995529652,
+      "narrowMs": 7,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 18,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.5,
+      "narrowMs": 7.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 18,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8,
+      "narrowMs": 10,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 19,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.799999997019768,
+      "narrowMs": 10.699999995529652,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 19,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.600000001490116,
+      "narrowMs": 5.799999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 20,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.600000001490116,
+      "narrowMs": 5.799999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 20,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.100000001490116,
+      "narrowMs": 10.400000005960464,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 21,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.100000001490116,
+      "narrowMs": 11.100000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 21,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.799999997019768,
+      "narrowMs": 6.199999995529652,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 22,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.600000001490116,
+      "narrowMs": 6.299999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 22,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 7.799999997019768,
+      "narrowMs": 11.200000002980232,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 23,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.399999998509884,
+      "narrowMs": 11,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 23,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.799999997019768,
+      "narrowMs": 6.300000004470348,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 24,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.600000001490116,
+      "narrowMs": 6.5999999940395355,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 24,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 10.100000001490116,
+      "narrowMs": 10.700000002980232,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 25,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.300000004470348,
+      "narrowMs": 9.199999995529652,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 25,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 10.299999997019768,
+      "narrowMs": 7.399999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 26,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.800000004470348,
+      "narrowMs": 6.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 26,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.200000002980232,
+      "narrowMs": 11,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 27,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.699999995529652,
+      "narrowMs": 10.100000001490116,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 27,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.699999995529652,
+      "narrowMs": 5.899999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 28,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.800000004470348,
+      "narrowMs": 6.799999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 28,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8,
+      "narrowMs": 11.800000004470348,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 29,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.600000001490116,
+      "narrowMs": 10.299999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 29,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 9,
+      "narrowMs": 6.5,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 30,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.899999998509884,
+      "narrowMs": 6.299999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 30,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.799999997019768,
+      "narrowMs": 11.700000002980232,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 31,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 7.5,
+      "narrowMs": 10.299999997019768,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 31,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.899999998509884,
+      "narrowMs": 6.399999998509884,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 32,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 100,
+      "fullMs": 8.5,
+      "narrowMs": 6.4000000059604645,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 32,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 100,
+      "fullMs": 8.200000002980232,
+      "narrowMs": 11,
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "pair": 1,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 69,
+      "narrowMs": 101.60000000149012,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 1,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 137.39999999850988,
+      "narrowMs": 60.899999998509884,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 2,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 133.40000000596046,
+      "narrowMs": 69.39999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 2,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 76.60000000149012,
+      "narrowMs": 97.20000000298023,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 3,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 86.60000000149012,
+      "narrowMs": 92.20000000298023,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 3,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 128.20000000298023,
+      "narrowMs": 63.79999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 4,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 116.60000000149012,
+      "narrowMs": 57.100000001490116,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 4,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 76.70000000298023,
+      "narrowMs": 94.60000000149012,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 5,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 67.70000000298023,
+      "narrowMs": 92.39999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 5,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 118.5,
+      "narrowMs": 58.600000001490116,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 6,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 115.89999999850988,
+      "narrowMs": 57,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 6,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 73.89999999850988,
+      "narrowMs": 95.29999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 7,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 67.10000000149012,
+      "narrowMs": 93.29999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 7,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 118.60000000149012,
+      "narrowMs": 64.59999999403954,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 8,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 118.69999999552965,
+      "narrowMs": 58,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 8,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 74.60000000149012,
+      "narrowMs": 98.5,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 9,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 72.10000000149012,
+      "narrowMs": 108,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 9,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 120.5,
+      "narrowMs": 58.5,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 10,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 115.09999999403954,
+      "narrowMs": 58.30000000447035,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 10,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 72.40000000596046,
+      "narrowMs": 100.19999999552965,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 11,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 68,
+      "narrowMs": 92.89999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 11,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 121.19999999552965,
+      "narrowMs": 61.899999998509884,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 12,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 124.89999999850988,
+      "narrowMs": 57.80000000447035,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 12,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 72,
+      "narrowMs": 94.10000000149012,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 13,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 67,
+      "narrowMs": 90.70000000298023,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 13,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 120.59999999403954,
+      "narrowMs": 61.600000001490116,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 14,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 114.20000000298023,
+      "narrowMs": 59.100000001490116,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 14,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 73.10000000149012,
+      "narrowMs": 99.89999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 15,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 66.80000000447035,
+      "narrowMs": 90,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 15,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 119.5,
+      "narrowMs": 64.30000000447035,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 16,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 120.39999999850988,
+      "narrowMs": 58.29999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 16,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 73.10000000149012,
+      "narrowMs": 96.5,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 17,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 80.60000000149012,
+      "narrowMs": 96.30000000447035,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 17,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 125.29999999701977,
+      "narrowMs": 62,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 18,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 117.5,
+      "narrowMs": 60,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 18,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 71.39999999850988,
+      "narrowMs": 97.19999999552965,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 19,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 65.59999999403954,
+      "narrowMs": 90.89999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 19,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 124.80000000447035,
+      "narrowMs": 59.69999999552965,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 20,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 116.19999999552965,
+      "narrowMs": 61.79999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 20,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 92.69999999552965,
+      "narrowMs": 105.79999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 21,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 69.5,
+      "narrowMs": 96.30000000447035,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 21,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 130.39999999850988,
+      "narrowMs": 59.79999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 22,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 121.70000000298023,
+      "narrowMs": 70.89999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 22,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 77.39999999850988,
+      "narrowMs": 97.20000000298023,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 23,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 72.20000000298023,
+      "narrowMs": 94.70000000298023,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 23,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 123.60000000149012,
+      "narrowMs": 63.400000005960464,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 24,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 122.80000000447035,
+      "narrowMs": 58.79999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 24,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 72.79999999701977,
+      "narrowMs": 96.39999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 25,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 76.59999999403954,
+      "narrowMs": 98.80000000447035,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 25,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 120.30000000447035,
+      "narrowMs": 60.399999998509884,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 26,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 123.30000000447035,
+      "narrowMs": 70.19999999552965,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 26,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 72.39999999850988,
+      "narrowMs": 99.20000000298023,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 27,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 65.10000000149012,
+      "narrowMs": 92.60000000149012,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 27,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 122.20000000298023,
+      "narrowMs": 58.5,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 28,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 114.29999999701977,
+      "narrowMs": 57.900000005960464,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 28,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 74.20000000298023,
+      "narrowMs": 145.60000000149012,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 29,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 76.29999999701977,
+      "narrowMs": 92.39999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 29,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 117.09999999403954,
+      "narrowMs": 57.30000000447035,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 30,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 111.60000000149012,
+      "narrowMs": 57,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 30,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 73.39999999850988,
+      "narrowMs": 96.39999999850988,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 31,
+      "position": 1,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 64.29999999701977,
+      "narrowMs": 92.5,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 31,
+      "position": 2,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 121.30000000447035,
+      "narrowMs": 63.79999999701977,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 32,
+      "position": 1,
+      "client": "tandrove",
+      "rowCount": 1000,
+      "fullMs": 119.10000000149012,
+      "narrowMs": 59.5,
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "pair": 32,
+      "position": 2,
+      "client": "apollo",
+      "rowCount": 1000,
+      "fullMs": 77.39999999850988,
+      "narrowMs": 95.60000000149012,
+      "responseBytes": [198470, 84859]
+    }
+  ],
+  "summary": [
+    {
+      "rowCount": 100,
+      "client": "apollo",
+      "samples": 32,
+      "full": {
+        "medianMs": 8.350000001490116,
+        "p95Ms": 10.100000001490116
+      },
+      "narrow": {
+        "medianMs": 10.550000000745058,
+        "p95Ms": 11.800000004470348
+      },
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "rowCount": 100,
+      "client": "tandrove",
+      "samples": 32,
+      "full": {
+        "medianMs": 8.899999998509884,
+        "p95Ms": 11.799999997019768
+      },
+      "narrow": {
+        "medianMs": 6.5,
+        "p95Ms": 7.5
+      },
+      "responseBytes": [19441, 8357]
+    },
+    {
+      "rowCount": 1000,
+      "client": "apollo",
+      "samples": 32,
+      "full": {
+        "medianMs": 72.60000000149012,
+        "p95Ms": 86.60000000149012
+      },
+      "narrow": {
+        "medianMs": 96.30000000447035,
+        "p95Ms": 108
+      },
+      "responseBytes": [198470, 84859]
+    },
+    {
+      "rowCount": 1000,
+      "client": "tandrove",
+      "samples": 32,
+      "full": {
+        "medianMs": 120.44999999925494,
+        "p95Ms": 133.40000000596046
+      },
+      "narrow": {
+        "medianMs": 59.74999999627471,
+        "p95Ms": 70.19999999552965
+      },
+      "responseBytes": [198470, 84859]
+    }
+  ]
+}

@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["node"],
+    "paths": {
+      "@angular/core": ["./node_modules/@angular/core/types/core.d.ts"]
+    },
     "lib": ["ES2022", "DOM"],
     "skipLibCheck": true
   },

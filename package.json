@@ -29,6 +29,7 @@
     "test:browser": "playwright test",
     "compare": "pnpm --filter @tandrove/angular... --filter @tandrove/graphql... build && tsx apps/billing-demo/bench/compare.mjs",
     "measure:readiness": "pnpm --filter @tandrove/graphql... build && node apps/billing-demo/bench/readiness.mjs",
+    "measure:apollo": "pnpm --filter @tandrove/angular... --filter @tandrove/graphql... build && tsx apps/billing-demo/bench/matched.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "pack:check": "node scripts/check-package.mjs",
